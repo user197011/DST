@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#7c3aed" />
+  <meta name="description" content="Speed, Distance & Time quiz app with 2000 questions, whole number and decimal modes." />
+  <title>Speed · Distance · Time Quiz</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <!-- Auth guard: redirect to login if not authenticated -->
+  <script>
+    if (sessionStorage.getItem('sdt_auth') !== '1') {
+      window.location.replace('login.html');
+    }
+  </script>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ══ HOME ══ -->
+  <div id="homeScreen" class="screen active">
+    <div class="hero">
+      <div class="hero-topbar">
+        <div class="hero-title">Speed · Distance · Time</div>
+        <button class="logout-btn" onclick="doLogout()" title="Sign out">⎋ Exit</button>
+      </div>
+      <div class="hero-sub">2000 questions · Rotated &amp; randomised</div>
+      <div class="stats-row">
+        <div class="sc"><div class="sc-n" id="hTotal">0</div><div class="sc-l">Done</div></div>
+        <div class="sc"><div class="sc-n" id="hCorrect">0</div><div class="sc-l">Correct</div></div>
+        <div class="sc"><div class="sc-n" id="hAcc">—</div><div class="sc-l">Accuracy</div></div>
+        <div class="sc"><div class="sc-n" id="hStreak">0🔥</div><div class="sc-l">Streak</div></div>
+      </div>
+    </div>
+    <div class="ref-bar">
+      <div class="ref-tile">
+        <div class="tri-row">
+          <svg viewBox="0 0 120 106" width="58" height="51" class="tri-svg" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="60,3 117,103 3,103" fill="#f9d6ff" stroke="#cc00cc" stroke-width="2.5" stroke-linejoin="round"/>
+            <line x1="60" y1="53" x2="3" y2="103" stroke="#cc00cc" stroke-width="2"/>
+            <line x1="60" y1="53" x2="117" y2="103" stroke="#cc00cc" stroke-width="2"/>
+            <line x1="21" y1="72" x2="99" y2="72" stroke="#cc00cc" stroke-width="2"/>
+            <text x="60" y="67" text-anchor="middle" font-size="12" font-weight="800" fill="#5a005a" font-family="Nunito,sans-serif">Distance</text>
+            <text x="31" y="92" text-anchor="middle" font-size="11" font-weight="800" fill="#5a005a" font-family="Nunito,sans-serif">Speed</text>
+            <text x="89" y="92" text-anchor="middle" font-size="11" font-weight="800" fill="#5a005a" font-family="Nunito,sans-serif">Time</text>
+          </svg>
+          <div class="f-chips">
+            <div class="fc"><div class="fci s">S</div><span class="fcv">D ÷ T</span></div>
+            <div class="fc"><div class="fci d">D</div><span class="fcv">S × T</span></div>
+            <div class="fc"><div class="fci t">T</div><span class="fcv">D ÷ S</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ref-tile">
+        <div class="mins-lbl">Mins → Hours</div>
+        <table class="mt">
+          <thead><tr><th>min</th><th>hrs</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>6</td><td>0.1</td><td></td></tr>
+            <tr><td>10</td><td>0.167</td><td></td></tr>
+            <tr><td>15</td><td>0.25</td><td><span class="mp">¼</span></td></tr>
+            <tr><td>20</td><td>0.33</td><td></td></tr>
+            <tr><td>30</td><td>0.5</td><td><span class="mp">½</span></td></tr>
+            <tr><td>40</td><td>0.67</td><td></td></tr>
+            <tr><td>45</td><td>0.75</td><td><span class="mp">¾</span></td></tr>
+            <tr><td>50</td><td>0.833</td><td></td></tr>
+            <tr><td>60</td><td>1.0</td><td><span class="mp">1hr</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="pad">
+      <div class="slbl">Choose question type</div>
+      <div class="mode-grid">
+        <div class="mc whole" onclick="selectMode('whole')">
+          <div class="mc-emoji">🔢</div>
+          <div class="mc-name">Whole numbers</div>
+          <div class="mc-sub">Clean integers only</div>
+          <div class="mc-eg">60 km/h, 3 hrs</div>
+        </div>
+        <div class="mc decimal" onclick="selectMode('decimal')">
+          <div class="mc-emoji">🔣</div>
+          <div class="mc-name">With decimals</div>
+          <div class="mc-sub">Fractional values</div>
+          <div class="mc-eg">1.5 hrs, 22.5 km</div>
+        </div>
+      </div>
+      <div class="slbl">Progress by category</div>
+      <div class="cat-grid">
+        <div class="cc speed"><div class="cc-icon">🚗</div><div class="cc-name">Speed</div><div class="cc-desc">Find the speed</div><div class="cc-prog"><div class="cc-pf" id="pg-speed"></div></div></div>
+        <div class="cc distance"><div class="cc-icon">📏</div><div class="cc-name">Distance</div><div class="cc-desc">Find the distance</div><div class="cc-prog"><div class="cc-pf" id="pg-distance"></div></div></div>
+        <div class="cc time"><div class="cc-icon">⏱️</div><div class="cc-name">Time</div><div class="cc-desc">Find the time</div><div class="cc-prog"><div class="cc-pf" id="pg-time"></div></div></div>
+        <div class="cc conversion"><div class="cc-icon">🔄</div><div class="cc-name">Conversions</div><div class="cc-desc">Units &amp; conversions</div><div class="cc-prog"><div class="cc-pf" id="pg-conversion"></div></div></div>
+        <div class="cc mixed"><div class="cc-icon">🎲</div><div class="cc-name">Mixed challenge</div><div class="cc-desc">All categories rotated</div><div class="cc-prog"><div class="cc-pf" id="pg-mixed"></div></div></div>
+      </div>
+      <div id="histBtn" class="hidden">
+        <div class="sec-row">
+          <button class="secbtn" onclick="goReview()">📋 Review history</button>
+          <button class="secbtn" onclick="resetAll()">🔄 Reset all</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SETUP ══ -->
+  <div id="setupScreen" class="screen">
+    <div class="setup-hero">
+      <button class="backbtn" onclick="goHome()">← Back</button>
+      <div class="setup-title" id="setupTitle">Set up your quiz</div>
+      <div class="setup-sub" id="setupSub">Whole numbers mode</div>
+    </div>
+    <div class="ref-bar" id="setupRefBar"></div>
+    <div class="pad">
+      <div class="slbl">Category</div>
+      <div class="cat-grid setup-cats" style="margin-bottom:10px;">
+        <div class="cc speed" onclick="setCat('speed')"><div class="cc-icon">🚗</div><div class="cc-name">Speed</div></div>
+        <div class="cc distance" onclick="setCat('distance')"><div class="cc-icon">📏</div><div class="cc-name">Distance</div></div>
+        <div class="cc time" onclick="setCat('time')"><div class="cc-icon">⏱️</div><div class="cc-name">Time</div></div>
+        <div class="cc conversion" onclick="setCat('conversion')"><div class="cc-icon">🔄</div><div class="cc-name">Conversions</div></div>
+        <div class="cc mixed" id="cc-mixed" style="border-color:#7c3aed;" onclick="setCat('mixed')"><div class="cc-icon">🎲</div><div class="cc-name">Mixed challenge</div></div>
+      </div>
+      <div class="slbl">Difficulty</div>
+      <div class="diff-row">
+        <button class="db active" id="diff-easy" onclick="setDiff('easy')">😊 Easy</button>
+        <button class="db" id="diff-medium" onclick="setDiff('medium')">🧠 Medium</button>
+        <button class="db" id="diff-hard" onclick="setDiff('hard')">🔥 Hard</button>
+      </div>
+      <div class="slbl">Questions per session</div>
+      <div class="qty-row">
+        <div class="qty-lbl">How many?</div>
+        <div class="qty-btns">
+          <button class="qb active" id="qty-10" onclick="setQty(10)">10</button>
+          <button class="qb" id="qty-20" onclick="setQty(20)">20</button>
+          <button class="qb" id="qty-50" onclick="setQty(50)">50</button>
+        </div>
+      </div>
+      <button class="bigbtn" onclick="launchQuiz()">Start quiz →</button>
+    </div>
+  </div>
+
+  <!-- ══ QUIZ ══ -->
+  <div id="quizScreen" class="screen">
+    <div class="quiz-hero">
+      <div class="quiz-top">
+        <button class="backbtn" onclick="goHome()">← Home</button>
+        <div class="quiz-top-right">
+          <span id="quizMBadge" class="mbadge whole">Whole</span>
+          <div class="sbadge">🔥 <span id="streakNum">0</span></div>
+        </div>
+      </div>
+      <div class="quiz-meta">
+        <span class="qctr" id="qCount">Q 1 / 10</span>
+        <span class="qscore" id="qScore">0 correct</span>
+      </div>
+      <div class="prog-track"><div class="prog-bar" id="progBar"></div></div>
+    </div>
+    <div class="ref-bar" id="quizRefBar"></div>
+    <div class="pad" style="padding-top:8px;">
+      <div id="qCard" class="qcard">
+        <div class="qbadge" id="qBadge">Speed</div>
+        <div class="qtxt" id="qText">Loading…</div>
+        <div class="opts" id="optsWrap"></div>
+        <div class="fb" id="feedbackEl">
+          <div class="fb-top">
+            <div class="fb-icon" id="fbIcon"></div>
+            <div class="fb-lbl" id="fbLbl"></div>
+          </div>
+          <div class="fb-hint" id="fbHint"></div>
+          <div class="fb-btns" id="fbBtns"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RESULTS ══ -->
+  <div id="resultsScreen" class="screen">
+    <div class="result-hero">
+      <div class="re-emoji" id="resEmoji">🎉</div>
+      <div class="re-title" id="resTitle">Great work!</div>
+      <div class="re-sub" id="resSub">—</div>
+      <div class="re-stats">
+        <div class="rs"><div class="rs-n" id="resPct">—</div><div class="rs-l">Accuracy</div></div>
+        <div class="rs"><div class="rs-n" id="resBest">—</div><div class="rs-l">Best streak</div></div>
+        <div class="rs"><div class="rs-n" id="resTime">—</div><div class="rs-l">Avg time</div></div>
+      </div>
+    </div>
+    <div class="ref-bar" id="resultsRefBar"></div>
+    <div class="pad">
+      <div class="slbl" style="margin-top:4px;">Question review</div>
+      <div id="reviewItems"></div>
+      <div class="results-btns">
+        <button class="bigbtn" style="margin-bottom:0;padding:14px;" onclick="replayQuiz()">Play again →</button>
+        <button class="secbtn" style="padding:14px 16px;" onclick="goHome()">🏠</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ REVIEW ══ -->
+  <div id="reviewScreen" class="screen">
+    <div class="setup-hero">
+      <button class="backbtn" onclick="goHome()">← Back</button>
+      <div class="setup-title">Answer history</div>
+    </div>
+    <div class="ref-bar" id="reviewRefBar"></div>
+    <div class="pad" id="reviewAll"></div>
+  </div>
+
+</div><!-- /app -->
+
+<script src="app.js"></script>
+</body>
+</html>

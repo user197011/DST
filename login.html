@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#7c3aed" />
+  <title>Speed · Distance · Time — Login</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Nunito Sans', sans-serif;
+      min-height: 100dvh;
+      background: #0f0720;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── ANIMATED BACKGROUND ORBS ── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      pointer-events: none;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    .orb-1 { width: 420px; height: 420px; background: #7c3aed; top: -120px; left: -80px; animation-delay: 0s; }
+    .orb-2 { width: 300px; height: 300px; background: #e040fb; bottom: -80px; right: -60px; animation-delay: -4s; }
+    .orb-3 { width: 200px; height: 200px; background: #4f46e5; top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -8s; }
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, 20px) scale(1.08); }
+    }
+    .orb-3 { animation-name: drift3; }
+    @keyframes drift3 {
+      from { transform: translate(-50%,-50%) scale(1); }
+      to   { transform: translate(calc(-50% + 20px), calc(-50% - 15px)) scale(1.1); }
+    }
+
+    /* ── CARD ── */
+    .card {
+      position: relative;
+      z-index: 10;
+      width: min(420px, calc(100vw - 32px));
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 28px;
+      padding: 2.5rem 2rem;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      animation: slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(32px) scale(0.96); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* ── LOGO AREA ── */
+    .logo-area { text-align: center; margin-bottom: 2rem; }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px; height: 72px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #7c3aed, #e040fb);
+      margin-bottom: 1rem;
+      box-shadow: 0 8px 32px rgba(124,58,237,0.5);
+    }
+
+    .logo-tri {
+      /* inline SVG triangle */
+    }
+
+    .logo-title {
+      font-family: 'Nunito', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+    }
+
+    .logo-sub {
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+    }
+
+    /* ── STATS STRIP ── */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 2rem;
+    }
+    .ss {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 10px 6px;
+      text-align: center;
+    }
+    .ss-n {
+      font-family: 'Nunito', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1;
+    }
+    .ss-n span { font-size: 14px; }
+    .ss-l {
+      font-size: 10px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── FORM ── */
+    .form-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .input-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .pw-input {
+      width: 100%;
+      padding: 14px 48px 14px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1.5px solid rgba(255,255,255,0.15);
+      border-radius: 14px;
+      color: #fff;
+      font-family: 'Nunito Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      -webkit-appearance: none;
+    }
+    .pw-input::placeholder { color: rgba(255,255,255,0.3); font-weight: 400; letter-spacing: 0; }
+    .pw-input:focus { border-color: #a855f7; background: rgba(255,255,255,0.12); }
+    .pw-input.error { border-color: #ef4444; animation: shake 0.35s ease; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-8px); }
+      40%      { transform: translateX(8px); }
+      60%      { transform: translateX(-5px); }
+      80%      { transform: translateX(5px); }
+    }
+
+    .toggle-vis {
+      position: absolute;
+      right: 14px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none;
+      color: rgba(255,255,255,0.4);
+      cursor: pointer; font-size: 18px;
+      padding: 4px; line-height: 1;
+      touch-action: manipulation;
+    }
+    .toggle-vis:hover { color: rgba(255,255,255,0.8); }
+
+    .error-msg {
+      font-size: 12px;
+      color: #f87171;
+      margin-top: -10px;
+      margin-bottom: 12px;
+      display: none;
+      padding-left: 4px;
+    }
+    .error-msg.show { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .login-btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #7c3aed, #e040fb);
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 17px;
+      font-weight: 900;
+      cursor: pointer;
+      letter-spacing: 0.2px;
+      transition: opacity 0.15s, transform 0.15s;
+      touch-action: manipulation;
+      position: relative;
+      overflow: hidden;
+    }
+    .login-btn:active { opacity: 0.85; transform: scale(0.98); }
+    .login-btn.loading { pointer-events: none; }
+    .login-btn.loading::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.2);
+    }
+
+    /* ── FOOTER ── */
+    .card-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    /* ── FEATURE PILLS ── */
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+    .fp {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.65);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background orbs -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="card">
+
+  <!-- Logo -->
+  <div class="logo-area">
+    <div class="logo-badge">
+      <svg viewBox="0 0 60 54" width="40" height="36" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="30,2 58,52 2,52" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="30" y1="27" x2="2"  y2="52" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+        <line x1="30" y1="27" x2="58" y2="52" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+        <line x1="11" y1="37" x2="49" y2="37" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+        <text x="30" y="35" text-anchor="middle" font-size="8" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">D</text>
+        <text x="16" y="50" text-anchor="middle" font-size="7" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">S</text>
+        <text x="44" y="50" text-anchor="middle" font-size="7" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">T</text>
+      </svg>
+    </div>
+    <div class="logo-title">Speed · Distance · Time</div>
+    <div class="logo-sub">Practice quiz · 2000 questions</div>
+  </div>
+
+  <!-- Feature pills -->
+  <div class="features">
+    <span class="fp">🔢 Whole numbers</span>
+    <span class="fp">🔣 Decimals</span>
+    <span class="fp">🎲 4 categories</span>
+    <span class="fp">📱 Mobile ready</span>
+  </div>
+
+  <!-- Quick stats from saved progress -->
+  <div class="stats-strip">
+    <div class="ss"><div class="ss-n" id="ls-total">—</div><div class="ss-l">Questions done</div></div>
+    <div class="ss"><div class="ss-n" id="ls-acc">—</div><div class="ss-l">Accuracy</div></div>
+    <div class="ss"><div class="ss-n" id="ls-streak">—<span>🔥</span></div><div class="ss-l">Best streak</div></div>
+  </div>
+
+  <!-- Login form -->
+  <label class="form-label" for="pwInput">Enter password to continue</label>
+  <div class="input-wrap">
+    <input
+      id="pwInput"
+      type="password"
+      class="pw-input"
+      placeholder="Password"
+      autocomplete="current-password"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      onkeydown="if(event.key==='Enter')doLogin()"
+    />
+    <button class="toggle-vis" onclick="toggleVis()" aria-label="Show/hide password" type="button">👁</button>
+  </div>
+  <div class="error-msg" id="errMsg">Incorrect password. Please try again.</div>
+
+  <button class="login-btn" id="loginBtn" onclick="doLogin()">
+    Enter Quiz →
+  </button>
+
+  <div class="card-footer">Protected access · HappyDTS</div>
+
+</div>
+
+<script>
+  /* ── Load saved stats to show on login page ── */
+  (function(){
+    try {
+      const saved = JSON.parse(localStorage.getItem('sdt_state') || '{}');
+      const total   = saved.total   || 0;
+      const correct = saved.correct || 0;
+      const streak  = saved.bestStreak || 0;
+      document.getElementById('ls-total').textContent  = total || '—';
+      document.getElementById('ls-acc').textContent    = total > 0 ? Math.round(correct/total*100)+'%' : '—';
+      document.getElementById('ls-streak').innerHTML   = streak > 0 ? streak+'<span>🔥</span>' : '—<span>🔥</span>';
+    } catch(e) {}
+  })();
+
+  /* ── Auto-redirect if already authenticated this session ── */
+  if (sessionStorage.getItem('sdt_auth') === '1') {
+    window.location.replace('index.html');
+  }
+
+  function doLogin() {
+    const val = document.getElementById('pwInput').value;
+    const btn = document.getElementById('loginBtn');
+    const err = document.getElementById('errMsg');
+    const inp = document.getElementById('pwInput');
+
+    if (val === 'HappyDTS') {
+      sessionStorage.setItem('sdt_auth', '1');
+      btn.textContent = 'Loading quiz…';
+      btn.classList.add('loading');
+      err.classList.remove('show');
+      setTimeout(() => { window.location.replace('index.html'); }, 400);
+    } else {
+      inp.classList.add('error');
+      err.classList.add('show');
+      inp.value = '';
+      setTimeout(() => inp.classList.remove('error'), 400);
+      inp.focus();
+    }
+  }
+
+  function toggleVis() {
+    const inp = document.getElementById('pwInput');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  /* Auto-focus input on load */
+  window.addEventListener('load', () => {
+    setTimeout(() => document.getElementById('pwInput').focus(), 300);
+  });
+</script>
+</body>
+</html>
