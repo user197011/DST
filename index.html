@@ -32,7 +32,7 @@
         </div>
         <button class="logout-btn" onclick="doLogout()" title="Sign out">⎋ Exit</button>
       </div>
-      <div class="hero-sub">2000 questions · Rotated &amp; randomised</div>
+      <div class="hero-sub">1500 questions · Speed, Distance &amp; Time</div>
       <div class="stats-row">
         <div class="sc"><div class="sc-n" id="hTotal">0</div><div class="sc-l">Done</div></div>
         <div class="sc"><div class="sc-n" id="hCorrect">0</div><div class="sc-l">Correct</div></div>
@@ -98,7 +98,6 @@
         <div class="cc speed"><div class="cc-icon">🚗</div><div class="cc-name">Speed</div><div class="cc-desc">Find the speed</div><div class="cc-prog"><div class="cc-pf" id="pg-speed"></div></div></div>
         <div class="cc distance"><div class="cc-icon">📏</div><div class="cc-name">Distance</div><div class="cc-desc">Find the distance</div><div class="cc-prog"><div class="cc-pf" id="pg-distance"></div></div></div>
         <div class="cc time"><div class="cc-icon">⏱️</div><div class="cc-name">Time</div><div class="cc-desc">Find the time</div><div class="cc-prog"><div class="cc-pf" id="pg-time"></div></div></div>
-        <div class="cc conversion"><div class="cc-icon">🔄</div><div class="cc-name">Conversions</div><div class="cc-desc">Units &amp; conversions</div><div class="cc-prog"><div class="cc-pf" id="pg-conversion"></div></div></div>
         <div class="cc mixed"><div class="cc-icon">🎲</div><div class="cc-name">Mixed challenge</div><div class="cc-desc">All categories rotated</div><div class="cc-prog"><div class="cc-pf" id="pg-mixed"></div></div></div>
       </div>
       <div id="histBtn" class="hidden">
@@ -106,6 +105,32 @@
           <button class="secbtn" onclick="goReview()">📋 Review history</button>
           <button class="secbtn" onclick="resetAll()">🔄 Reset all</button>
         </div>
+      </div>
+
+      <!-- ══ LEADERBOARD ══ -->
+      <div class="lb-container">
+        <div class="lb-header">
+          <span class="lb-title">🏆 Leaderboard</span>
+          <button class="lb-refresh" onclick="renderLeaderboard()" title="Refresh">↻</button>
+        </div>
+        <div class="lb-table-wrap">
+          <table class="lb-table">
+            <thead>
+              <tr>
+                <th class="lb-th-place">#</th>
+                <th class="lb-th-player">Player</th>
+                <th class="lb-th-cat">🚗</th>
+                <th class="lb-th-cat">📏</th>
+                <th class="lb-th-cat">⏱️</th>
+                <th class="lb-th-overall">Overall</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardBody">
+              <tr><td colspan="6" class="lb-empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="lb-note">Updates live across all sessions on this device</div>
       </div>
     </div>
   </div>
@@ -124,7 +149,6 @@
         <div class="cc speed" onclick="setCat('speed')"><div class="cc-icon">🚗</div><div class="cc-name">Speed</div></div>
         <div class="cc distance" onclick="setCat('distance')"><div class="cc-icon">📏</div><div class="cc-name">Distance</div></div>
         <div class="cc time" onclick="setCat('time')"><div class="cc-icon">⏱️</div><div class="cc-name">Time</div></div>
-        <div class="cc conversion" onclick="setCat('conversion')"><div class="cc-icon">🔄</div><div class="cc-name">Conversions</div></div>
         <div class="cc mixed" id="cc-mixed" style="border-color:#7c3aed;" onclick="setCat('mixed')"><div class="cc-icon">🎲</div><div class="cc-name">Mixed challenge</div></div>
       </div>
       <div class="slbl">Difficulty</div>

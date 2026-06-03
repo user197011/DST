@@ -1,124 +1,95 @@
 /* ─────────────────────────────────────────────────────
    Speed · Distance · Time Quiz — app.js
-   Multi-session: each session's state is stored under
-   sdt_session_{id}  →  { …, state: { total, correct, … } }
-   The active session id is in sessionStorage (tab-scoped),
-   so multiple browser tabs can run different sessions.
+   3 categories: Speed · Distance · Time  (no Conversions)
+   Multi-session: each session stored under sdt_session_{id}
+   Live leaderboard: ranked by accuracy then total done
 ───────────────────────────────────────────────────── */
 
 /* ── SESSION IDENTITY ── */
 const SESSION_PFX = 'sdt_session_';
 
-function getSessionId() {
-  return sessionStorage.getItem('sdt_session_id') || null;
-}
-
+function getSessionId()     { return sessionStorage.getItem('sdt_session_id') || null; }
 function getSessionRecord() {
-  const id = getSessionId();
-  if (!id) return null;
+  const id = getSessionId(); if (!id) return null;
   try { return JSON.parse(localStorage.getItem(SESSION_PFX + id)); } catch { return null; }
 }
-
-function saveSessionRecord(record) {
-  if (!record) return;
-  localStorage.setItem(SESSION_PFX + record.id, JSON.stringify(record));
+function saveSessionRecord(r) {
+  if (!r) return;
+  localStorage.setItem(SESSION_PFX + r.id, JSON.stringify(r));
+}
+function getSessionIds() {
+  try { return JSON.parse(localStorage.getItem('sdt_sessions') || '[]'); } catch { return []; }
+}
+function getAllSessions() {
+  return getSessionIds().map(id => {
+    try { return JSON.parse(localStorage.getItem(SESSION_PFX + id)); } catch { return null; }
+  }).filter(Boolean);
 }
 
-/* ── QUIZ STATE (global — persisted per session) ── */
+/* ── STATE ── */
 const CATS = {
-  speed:      { label: 'Speed',      emoji: '🚗' },
-  distance:   { label: 'Distance',   emoji: '📏' },
-  time:       { label: 'Time',       emoji: '⏱️' },
-  conversion: { label: 'Conversion', emoji: '🔄' },
-  mixed:      { label: 'Mixed',      emoji: '🎲' }
+  speed:    { label: 'Speed',    emoji: '🚗' },
+  distance: { label: 'Distance', emoji: '📏' },
+  time:     { label: 'Time',     emoji: '⏱️' },
+  mixed:    { label: 'Mixed',    emoji: '🎲' }
 };
 
 function emptyState() {
   return {
     total: 0, correct: 0, bestStreak: 0,
-    cats: { speed:{d:0,c:0}, distance:{d:0,c:0}, time:{d:0,c:0}, conversion:{d:0,c:0} },
+    cats: { speed:{d:0,c:0}, distance:{d:0,c:0}, time:{d:0,c:0} },
     history: []
   };
 }
 
-let state = emptyState();
-
-let session = {
-  mode: 'whole', cat: 'mixed', diff: 'easy', qty: 10,
-  idx: 0, correct: 0, streak: 0, best: 0,
-  qs: [], answers: [], t0: [], totalTime: 0
-};
-
-let selCat = 'mixed';
-let curQ = null;
+let state   = emptyState();
+let session = { mode:'whole', cat:'mixed', diff:'easy', qty:10,
+  idx:0, correct:0, streak:0, best:0, qs:[], answers:[], t0:[], totalTime:0 };
+let selCat  = 'mixed';
+let curQ    = null;
 let answered = false;
-let WHOLE = null, DECIMAL = null;
+let WHOLE   = null, DECIMAL = null;
 
-/* ── NAVIGATION ── */
-function goHome() { show('homeScreen'); updateDash(); }
-
+/* ── NAV ── */
+function goHome()   { show('homeScreen'); updateDash(); renderLeaderboard(); }
 function goReview() {
   show('reviewScreen');
   const el = document.getElementById('reviewAll');
-  if (!state.history.length) {
-    el.innerHTML = '<p style="color:#7c5a8a;font-size:13px;padding:1rem 0;">No history yet.</p>';
-    return;
-  }
+  if (!state.history.length) { el.innerHTML='<p style="color:#7c5a8a;font-size:13px;padding:1rem 0;">No history yet.</p>'; return; }
   el.innerHTML = state.history.slice().reverse().map(ri).join('');
 }
 
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  ['setupRefBar','quizRefBar','resultsRefBar','reviewRefBar'].forEach(barId => {
-    const el = document.getElementById(barId);
+  ['setupRefBar','quizRefBar','resultsRefBar','reviewRefBar'].forEach(bid => {
+    const el = document.getElementById(bid);
     if (el && !el.dataset.filled) { el.innerHTML = refBarHTML(); el.dataset.filled = '1'; }
   });
 }
 
 function selectMode(m) {
   session.mode = m;
-  document.getElementById('setupTitle').textContent = m === 'whole' ? '🔢 Whole numbers quiz' : '🔣 Decimals quiz';
-  document.getElementById('setupSub').textContent   = m === 'whole' ? 'Whole numbers only' : 'Includes fractional values';
+  document.getElementById('setupTitle').textContent = m==='whole' ? '🔢 Whole numbers quiz' : '🔣 Decimals quiz';
+  document.getElementById('setupSub').textContent   = m==='whole' ? 'Whole numbers only' : 'Includes fractional values';
   show('setupScreen');
 }
-
 function setCat(c) {
   selCat = c;
-  document.querySelectorAll('.setup-cats .cc').forEach(e => e.style.borderColor = 'transparent');
-  const el = document.querySelector('.setup-cats .cc.' + c);
+  document.querySelectorAll('.setup-cats .cc').forEach(e => e.style.borderColor='transparent');
+  const el = document.querySelector('.setup-cats .cc.'+c);
   if (el) el.style.borderColor = '#7c3aed';
 }
-
 function setDiff(d) {
   session.diff = d;
-  ['easy','medium','hard'].forEach(x =>
-    document.getElementById('diff-' + x).classList.toggle('active', x === d)
-  );
+  ['easy','medium','hard'].forEach(x => document.getElementById('diff-'+x).classList.toggle('active', x===d));
 }
-
 function setQty(n) {
   session.qty = n;
-  [10, 20, 50].forEach(x =>
-    document.getElementById('qty-' + x).classList.toggle('active', x === n)
-  );
+  [10,20,50].forEach(x => document.getElementById('qty-'+x).classList.toggle('active', x===n));
 }
 
-/* ── SESSION HEADER (name + avatar) ── */
-function renderSessionHeader() {
-  const rec = getSessionRecord();
-  if (!rec) return;
-  // Inject into hero topbar
-  const nameEl = document.getElementById('sessionName');
-  const avEl   = document.getElementById('sessionAvatar');
-  if (nameEl) nameEl.textContent = rec.name;
-  if (avEl)   {
-    avEl.textContent  = rec.avatar || '🚀';
-    avEl.className    = 'sess-av-badge ' + (rec.avatarBg || 'av-bg-1');
-  }
-}
-
-/* ── SHARED REF BAR HTML ── */
+/* ── REF BAR ── */
 function refBarHTML() {
   return `
   <div class="ref-tile">
@@ -158,45 +129,35 @@ function refBarHTML() {
   </div>`;
 }
 
-/* ── QUESTION GENERATION UTILS ── */
+/* ── UTILS ── */
 function sh(a) {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
+  for (let i=a.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
   return a;
 }
-
 function shOpts(correct, fakes) {
-  const all = [correct, ...fakes.slice(0, 3)];
-  sh(all);
-  return { opts: all, ans: all.indexOf(correct) };
+  const all=[correct,...fakes.slice(0,3)]; sh(all);
+  return { opts:all, ans:all.indexOf(correct) };
 }
-
 function interleave(...arrays) {
-  const result = [];
-  const maxLen = Math.max(...arrays.map(a => a.length));
-  for (let i = 0; i < maxLen; i++) {
-    for (const arr of arrays) { if (i < arr.length) result.push(arr[i]); }
-  }
+  const result=[]; const maxLen=Math.max(...arrays.map(a=>a.length));
+  for(let i=0;i<maxLen;i++) for(const arr of arrays) if(i<arr.length) result.push(arr[i]);
   return result;
 }
-
 function antiConsecutiveShuffle(qs) {
   sh(qs);
-  for (let pass = 0; pass < 3; pass++) {
-    for (let i = 2; i < qs.length; i++) {
-      if (qs[i].ans === qs[i-1].ans && qs[i].ans === qs[i-2].ans) {
-        const swapWith = Math.min(i + 1 + Math.floor(Math.random() * 4), qs.length - 1);
-        if (swapWith !== i) [qs[i], qs[swapWith]] = [qs[swapWith], qs[i]];
+  for(let pass=0;pass<3;pass++) {
+    for(let i=2;i<qs.length;i++) {
+      if(qs[i].ans===qs[i-1].ans&&qs[i].ans===qs[i-2].ans) {
+        const sw=Math.min(i+1+Math.floor(Math.random()*4),qs.length-1);
+        if(sw!==i)[qs[i],qs[sw]]=[qs[sw],qs[i]];
       }
     }
   }
   return qs;
 }
 
-/* ── VEHICLE TEMPLATES ── */
-const V = [
+/* ── VEHICLES ── */
+const V=[
   ['car','km','km/h'],['train','km','km/h'],['bus','miles','mph'],
   ['cyclist','km','km/h'],['lorry','km','km/h'],['plane','km','km/h'],
   ['boat','km','km/h'],['motorcycle','km','km/h'],['runner','km','km/h'],
@@ -206,15 +167,14 @@ const V = [
   ['electric car','km','km/h'],['minibus','miles','mph']
 ];
 
-/* ── BUILD WHOLE NUMBER BANK ── */
+/* ── WHOLE NUMBER BANK (750 Qs: 250 speed + 250 distance + 250 time) ── */
 function buildWhole() {
-  const spd = [], dst = [], tim = [], con = [];
+  const spd=[],dst=[],tim=[];
 
-  const SP = [[60,2],[80,3],[100,4],[120,3],[90,2],[70,5],[110,4],[50,3],[40,6],[150,2],[200,3],[160,4],[130,5],[75,4],[45,2],[55,3],[85,4],[95,5],[105,6],[115,4],[125,2],[135,3],[145,4],[155,5],[165,6],[175,4],[185,2],[195,3],[205,4],[215,5],[225,6],[235,4],[245,2],[255,3],[265,4],[30,7],[35,4],[25,8],[20,5],[15,6],[180,2],[170,3],[140,4],[210,5],[220,3],[230,4],[240,5],[250,2],[260,3],[270,4]];
-  for (let i = 0; i < 250; i++) {
+  const SP=[[60,2],[80,3],[100,4],[120,3],[90,2],[70,5],[110,4],[50,3],[40,6],[150,2],[200,3],[160,4],[130,5],[75,4],[45,2],[55,3],[85,4],[95,5],[105,6],[115,4],[125,2],[135,3],[145,4],[155,5],[165,6],[175,4],[185,2],[195,3],[205,4],[215,5],[225,6],[235,4],[245,2],[255,3],[265,4],[30,7],[35,4],[25,8],[20,5],[15,6],[180,2],[170,3],[140,4],[210,5],[220,3],[230,4],[240,5],[250,2],[260,3],[270,4]];
+  for(let i=0;i<250;i++){
     const v=V[i%V.length],p=SP[i%SP.length],s=p[0],t=p[1],d=s*t;
-    const fk=[s-10,s+10,s+20].filter(x=>x>0&&x!==s);
-    while(fk.length<3)fk.push(s+fk.length*5+1);
+    const fk=[s-10,s+10,s+20].filter(x=>x>0&&x!==s); while(fk.length<3)fk.push(s+fk.length*5+1);
     const{opts,ans}=shOpts(s,sh([...fk]));
     spd.push({cat:'speed',diff:s>150?'hard':s>80?'medium':'easy',
       q:`A ${v[0]} travels ${d} ${v[1]} in ${t} hour${t>1?'s':''}. What is its average speed?`,
@@ -224,8 +184,7 @@ function buildWhole() {
   const DP=[[60,3],[80,2],[100,4],[120,3],[90,5],[70,6],[110,3],[50,4],[40,5],[150,2],[200,3],[160,2],[130,4],[75,4],[45,2],[55,3],[85,4],[95,3],[105,2],[115,4],[125,2],[135,3],[145,2],[155,4],[165,3],[175,2],[185,4],[195,3],[205,2],[215,4],[30,6],[35,4],[25,4],[20,5],[15,4],[180,3],[170,4],[140,5],[210,3],[220,2],[230,3],[240,2],[250,4],[260,3],[270,2],[280,3],[290,2],[300,3],[50,6],[60,4]];
   for(let i=0;i<250;i++){
     const v=V[i%V.length],p=DP[i%DP.length],s=p[0],t=p[1],d=s*t;
-    const fk=[d-40,d+40,d+90].filter(x=>x>0&&x!==d);
-    while(fk.length<3)fk.push(d+fk.length*15+5);
+    const fk=[d-40,d+40,d+90].filter(x=>x>0&&x!==d); while(fk.length<3)fk.push(d+fk.length*15+5);
     const{opts,ans}=shOpts(d,sh([...fk]));
     dst.push({cat:'distance',diff:d>500?'hard':d>200?'medium':'easy',
       q:`A ${v[0]} travels at ${s} ${v[2]} for ${t} hour${t>1?'s':''}. How far does it travel?`,
@@ -236,41 +195,24 @@ function buildWhole() {
   for(let i=0;i<250;i++){
     const v=V[i%V.length],p=TP[i%TP.length],s=p[0],d=p[1],t=d/s;
     if(!Number.isInteger(t)||t<1){if(tim.length)tim.push({...tim[tim.length-1]});continue;}
-    const fk=[t-1,t+1,t+2].filter(x=>x>0&&x!==t);
-    while(fk.length<3)fk.push(t+fk.length+1);
+    const fk=[t-1,t+1,t+2].filter(x=>x>0&&x!==t); while(fk.length<3)fk.push(t+fk.length+1);
     const{opts,ans}=shOpts(t,sh([...fk]));
     tim.push({cat:'time',diff:t>5?'hard':t>2?'medium':'easy',
       q:`A ${v[0]} travels ${d} ${v[1]} at ${s} ${v[2]}. How long does the journey take?`,
       opts:opts.map(o=>o+' hour'+(o>1?'s':'')),ans,hint:`Time = ${d} ÷ ${s} = ${t} hour${t>1?'s':''}`});
   }
   while(tim.length<250)tim.push({...tim[tim.length-1]});
-
-  const CW=[
-    {q:'Convert {v} km/h to m/s.',calc:v=>Math.round(v/3.6*10)/10,u:'m/s',h:'÷ 3.6',vs:[36,72,90,108,144,180,216,252,288,324,360,396,432,468,504,540,576,612,648,684,54,126,162,198,234,270,306,342,378,414,450,486,522,558,594,630,666,702,738,774,810,846,882,918,954,18,27,45,63,81]},
-    {q:'Convert {v} m/s to km/h.',calc:v=>v*3.6,u:'km/h',h:'× 3.6',vs:[5,10,15,20,25,30,35,40,45,50,2,4,6,8,12,14,16,18,22,24,26,28,32,34,36,38,42,44,46,48,52,54,56,58,62,64,66,68,72,74,76,78,82,84,86,88,92,94,96,98]},
-    {q:'Convert {v} mph to km/h (1 mile = 1.6 km).',calc:v=>v*1.6,u:'km/h',h:'× 1.6',vs:[10,20,30,40,50,60,70,80,90,100,15,25,35,45,55,65,75,85,95,5,12,18,22,28,32,38,42,48,52,58,62,68,72,78,82,88,92,98,102,108,112,118,122,128,132,138,142,148,152,158]},
-    {q:'Convert {v} km/h to mph (1 mile = 1.6 km).',calc:v=>Math.round(v/1.6*10)/10,u:'mph',h:'÷ 1.6',vs:[16,32,48,64,80,96,112,128,144,160,24,40,56,72,88,104,120,136,152,168,176,192,208,224,240,256,272,288,304,320,336,352,368,384,400,8,24,40,56,72,88,104,120,136,152]}
-  ];
-  for(let i=0;i<250;i++){
-    const T=CW[i%CW.length],val=T.vs[Math.floor(i/CW.length)%T.vs.length];
-    const cor=parseFloat(T.calc(val).toFixed(2));
-    const fk=[parseFloat((cor*0.75).toFixed(2)),parseFloat((cor*0.85).toFixed(2)),parseFloat((cor*1.25).toFixed(2))];
-    const{opts,ans}=shOpts(cor,sh([...fk]));
-    con.push({cat:'conversion',diff:val>100?'hard':val>50?'medium':'easy',
-      q:T.q.replace('{v}',val),opts:opts.map(o=>o+' '+T.u),ans,hint:`${val} ${T.h} = ${cor} ${T.u}`});
-  }
-  return{speed:sh(spd),distance:sh(dst),time:sh(tim),conversion:sh(con)};
+  return{speed:sh(spd),distance:sh(dst),time:sh(tim)};
 }
 
-/* ── BUILD DECIMAL BANK ── */
+/* ── DECIMAL BANK (750 Qs) ── */
 function buildDecimal() {
-  const spd=[],dst=[],tim=[],con=[];
+  const spd=[],dst=[],tim=[];
 
   const SD=[[75,1.5],[90,2.5],[120,1.5],[60,2.5],[100,3.5],[80,4.5],[110,1.5],[50,2.5],[45,1.5],[130,2.5],[70,4.5],[140,3.5],[150,1.5],[160,2.5],[55,1.5],[85,2.5],[95,1.5],[105,3.5],[115,2.5],[125,1.5],[135,2.5],[145,1.5],[155,2.5],[165,1.5],[175,2.5],[185,1.5],[195,2.5],[205,1.5],[215,2.5],[225,1.5],[235,2.5],[245,1.5],[255,2.5],[265,1.5],[275,2.5],[65,1.5],[35,2.5],[25,1.5],[20,2.5],[15,4.5],[180,1.5],[170,2.5],[210,1.5],[220,2.5],[230,1.5],[240,2.5],[250,1.5],[260,2.5],[270,1.5],[280,2.5]];
   for(let i=0;i<250;i++){
     const v=V[i%V.length],p=SD[i%SD.length],s=p[0],t=p[1],d=s*t;
-    const fk=[s-10,s+10,s+20].filter(x=>x>0&&x!==s);
-    while(fk.length<3)fk.push(s+fk.length*5+1);
+    const fk=[s-10,s+10,s+20].filter(x=>x>0&&x!==s); while(fk.length<3)fk.push(s+fk.length*5+1);
     const{opts,ans}=shOpts(s,sh([...fk]));
     spd.push({cat:'speed',diff:s>150?'hard':s>80?'medium':'easy',
       q:`A ${v[0]} travels ${d} ${v[1]} in ${t} hours. What is its average speed?`,
@@ -296,232 +238,264 @@ function buildDecimal() {
       q:`A ${v[0]} travels ${d} ${v[1]} at ${s} ${v[2]}. How long does the journey take?`,
       opts:opts.map(o=>o+' hours'),ans,hint:`Time = ${d} ÷ ${s} = ${t} hours`});
   }
-
-  const CD=[
-    {q:'Convert {v} km/h to m/s.',calc:v=>parseFloat((v/3.6).toFixed(2)),u:'m/s',h:'÷ 3.6',vs:[45,63,81,99,117,135,153,171,189,207,225,243,261,279,297,315,333,351,369,387,405,423,441,459,477,495,513,531,549,567,585,603,621,639,657,675,693,711,729,747,765,783,801,819,837,855,873,891,909,927]},
-    {q:'Convert {v} m/s to km/h.',calc:v=>parseFloat((v*3.6).toFixed(1)),u:'km/h',h:'× 3.6',vs:[1.5,2.5,3.5,4.5,6.5,7.5,8.5,9.5,11.5,12.5,13.5,14.5,16.5,17.5,18.5,19.5,21.5,22.5,23.5,24.5,26.5,27.5,28.5,29.5,31.5,32.5,33.5,34.5,36.5,37.5,38.5,39.5,41.5,42.5,43.5,44.5,46.5,47.5,48.5,49.5,51.5,52.5,53.5,54.5,56.5,57.5,58.5,59.5,61.5,62.5]},
-    {q:'Convert {v} mph to km/h (1 mile = 1.6 km).',calc:v=>parseFloat((v*1.6).toFixed(1)),u:'km/h',h:'× 1.6',vs:[12.5,17.5,22.5,27.5,32.5,37.5,42.5,47.5,52.5,57.5,62.5,67.5,72.5,77.5,82.5,87.5,92.5,97.5,102.5,107.5,112.5,117.5,122.5,127.5,132.5,137.5,142.5,147.5,152.5,157.5,162.5,167.5,172.5,177.5,182.5,187.5,192.5,197.5,202.5,207.5,212.5,217.5,222.5,227.5,232.5,237.5,242.5,247.5,252.5,257.5]},
-    {q:'A vehicle travels {v} km in 90 minutes. What is its speed in km/h?',calc:v=>parseFloat((v/1.5).toFixed(1)),u:'km/h',h:'÷ 1.5 (90 min = 1.5 hrs)',vs:[60,75,90,105,120,135,150,165,180,195,210,225,240,255,270,285,300,315,330,345,360,375,390,405,420,435,450,465,480,495,510,525,540,555,570,585,600,615,630,645,660,675,690,705,720,735,750,765,780,795]}
-  ];
-  for(let i=0;i<250;i++){
-    const T=CD[i%CD.length],val=T.vs[Math.floor(i/CD.length)%T.vs.length];
-    const cor=T.calc(val);
-    const fk=[parseFloat((cor*0.75).toFixed(2)),parseFloat((cor*0.85).toFixed(2)),parseFloat((cor*1.25).toFixed(2))];
-    const{opts,ans}=shOpts(cor,sh([...fk]));
-    con.push({cat:'conversion',diff:val>100?'hard':val>50?'medium':'easy',
-      q:T.q.replace('{v}',val),opts:opts.map(o=>o+' '+T.u),ans,hint:`${val} ${T.h} = ${cor} ${T.u}`});
-  }
-  return{speed:sh(spd),distance:sh(dst),time:sh(tim),conversion:sh(con)};
+  return{speed:sh(spd),distance:sh(dst),time:sh(tim)};
 }
 
-function ensureBanks() {
-  if (!WHOLE)   WHOLE   = buildWhole();
-  if (!DECIMAL) DECIMAL = buildDecimal();
-}
-
-function getBk() { ensureBanks(); return session.mode === 'whole' ? WHOLE : DECIMAL; }
+function ensureBanks() { if(!WHOLE)WHOLE=buildWhole(); if(!DECIMAL)DECIMAL=buildDecimal(); }
+function getBk() { ensureBanks(); return session.mode==='whole'?WHOLE:DECIMAL; }
 
 function getQs() {
-  const bk = getBk();
+  const bk=getBk();
   let pool;
-  if (session.cat === 'mixed') {
-    const subPools = ['speed','distance','time','conversion'].map(c => {
-      let p = [...bk[c]].filter(q => q.diff === session.diff);
-      if (!p.length) p = [...bk[c]];
-      return sh(p);
+  if(session.cat==='mixed'){
+    const subs=['speed','distance','time'].map(c=>{
+      let p=[...bk[c]].filter(q=>q.diff===session.diff);
+      if(!p.length)p=[...bk[c]]; return sh(p);
     });
-    pool = interleave(...subPools);
+    pool=interleave(...subs);
   } else {
-    pool = [...bk[session.cat]].filter(q => q.diff === session.diff);
-    if (!pool.length) pool = [...bk[session.cat]];
-    sh(pool);
+    pool=[...bk[session.cat]].filter(q=>q.diff===session.diff);
+    if(!pool.length)pool=[...bk[session.cat]]; sh(pool);
   }
-  return antiConsecutiveShuffle(pool).slice(0, session.qty);
+  return antiConsecutiveShuffle(pool).slice(0,session.qty);
 }
 
 /* ── QUIZ FLOW ── */
 function launchQuiz() {
-  session.cat = selCat; session.idx = 0; session.correct = 0;
-  session.streak = 0; session.best = 0;
-  session.qs = getQs(); session.answers = []; session.t0 = []; session.totalTime = 0;
-  const badge = document.getElementById('quizMBadge');
-  badge.textContent = session.mode === 'whole' ? 'Whole' : 'Decimal';
-  badge.className = 'mbadge ' + (session.mode === 'whole' ? 'whole' : 'decimal');
-  show('quizScreen');
-  loadQ();
+  session.cat=selCat; session.idx=0; session.correct=0; session.streak=0; session.best=0;
+  session.qs=getQs(); session.answers=[]; session.t0=[]; session.totalTime=0;
+  const badge=document.getElementById('quizMBadge');
+  badge.textContent=session.mode==='whole'?'Whole':'Decimal';
+  badge.className='mbadge '+(session.mode==='whole'?'whole':'decimal');
+  show('quizScreen'); loadQ();
 }
-
-function replayQuiz() { WHOLE = null; DECIMAL = null; launchQuiz(); }
+function replayQuiz() { WHOLE=null; DECIMAL=null; launchQuiz(); }
 
 function loadQ() {
-  answered = false;
-  document.getElementById('feedbackEl').style.display = 'none';
-  if (session.idx >= session.qty) { showResults(); return; }
-  curQ = session.qs[session.idx];
-  session.t0[session.idx] = Date.now();
-
-  document.getElementById('qCount').textContent  = `Q ${session.idx + 1} / ${session.qty}`;
-  document.getElementById('qScore').textContent  = `${session.correct} correct`;
-  document.getElementById('progBar').style.width = Math.round(session.idx / session.qty * 100) + '%';
-  document.getElementById('streakNum').textContent = session.streak;
-
-  const badge = document.getElementById('qBadge');
-  badge.textContent = CATS[curQ.cat].emoji + ' ' + CATS[curQ.cat].label;
-  badge.className = 'qbadge ' + curQ.cat;
-  document.getElementById('qText').textContent = curQ.q;
-
-  const wrap = document.getElementById('optsWrap');
-  wrap.innerHTML = '';
-  curQ.opts.forEach((opt, i) => {
-    const b = document.createElement('button');
-    b.className = 'opt'; b.textContent = opt;
-    b.addEventListener('click', () => selAns(i, b));
-    wrap.appendChild(b);
+  answered=false;
+  document.getElementById('feedbackEl').style.display='none';
+  if(session.idx>=session.qty){showResults();return;}
+  curQ=session.qs[session.idx];
+  session.t0[session.idx]=Date.now();
+  document.getElementById('qCount').textContent  =`Q ${session.idx+1} / ${session.qty}`;
+  document.getElementById('qScore').textContent  =`${session.correct} correct`;
+  document.getElementById('progBar').style.width =Math.round(session.idx/session.qty*100)+'%';
+  document.getElementById('streakNum').textContent=session.streak;
+  const badge=document.getElementById('qBadge');
+  badge.textContent=CATS[curQ.cat].emoji+' '+CATS[curQ.cat].label;
+  badge.className='qbadge '+curQ.cat;
+  document.getElementById('qText').textContent=curQ.q;
+  const wrap=document.getElementById('optsWrap'); wrap.innerHTML='';
+  curQ.opts.forEach((opt,i)=>{
+    const b=document.createElement('button');
+    b.className='opt'; b.textContent=opt;
+    b.addEventListener('click',()=>selAns(i,b)); wrap.appendChild(b);
   });
 }
 
-function selAns(i, btn) {
-  if (answered) return;
-  answered = true;
-  const elapsed = Math.round((Date.now() - session.t0[session.idx]) / 100) / 10;
-  session.totalTime += elapsed;
-
-  document.querySelectorAll('.opt').forEach(b => b.disabled = true);
-  const ok = i === curQ.ans;
-  btn.classList.add(ok ? 'correct' : 'wrong');
-  if (!ok) document.querySelectorAll('.opt')[curQ.ans].classList.add('show-correct');
-
-  if (ok) { session.correct++; session.streak++; if (session.streak > session.best) session.best = session.streak; }
-  else session.streak = 0;
-
-  document.getElementById('streakNum').textContent = session.streak;
-  document.getElementById('qScore').textContent = `${session.correct} correct`;
-
-  if (state.cats[curQ.cat]) { state.cats[curQ.cat].d++; if (ok) state.cats[curQ.cat].c++; }
-  state.total++; if (ok) state.correct++;
-  if (session.best > state.bestStreak) state.bestStreak = session.best;
-
-  const entry = { q: curQ.q, cat: curQ.cat, ok, chosen: curQ.opts[i], right: curQ.opts[curQ.ans] };
-  state.history.push(entry);
-  session.answers.push(entry);
-
-  showFeedback(ok, curQ.hint, curQ.opts[curQ.ans]);
+function selAns(i,btn) {
+  if(answered)return; answered=true;
+  const el=Math.round((Date.now()-session.t0[session.idx])/100)/10;
+  session.totalTime+=el;
+  document.querySelectorAll('.opt').forEach(b=>b.disabled=true);
+  const ok=i===curQ.ans;
+  btn.classList.add(ok?'correct':'wrong');
+  if(!ok)document.querySelectorAll('.opt')[curQ.ans].classList.add('show-correct');
+  if(ok){session.correct++;session.streak++;if(session.streak>session.best)session.best=session.streak;}
+  else session.streak=0;
+  document.getElementById('streakNum').textContent=session.streak;
+  document.getElementById('qScore').textContent=`${session.correct} correct`;
+  if(state.cats[curQ.cat]){state.cats[curQ.cat].d++;if(ok)state.cats[curQ.cat].c++;}
+  state.total++;if(ok)state.correct++;
+  if(session.best>state.bestStreak)state.bestStreak=session.best;
+  const entry={q:curQ.q,cat:curQ.cat,ok,chosen:curQ.opts[i],right:curQ.opts[curQ.ans]};
+  state.history.push(entry); session.answers.push(entry);
+  showFeedback(ok,curQ.hint,curQ.opts[curQ.ans]);
   saveState();
 }
 
-function showFeedback(ok, hint, correct) {
-  const fb = document.getElementById('feedbackEl');
-  fb.className = 'fb ' + (ok ? 'correct' : 'wrong');
-  document.getElementById('fbIcon').textContent = ok ? '✅' : '❌';
-  document.getElementById('fbLbl').textContent  = ok ? 'Correct!' : 'Incorrect';
-  document.getElementById('fbLbl').className    = 'fb-lbl ' + (ok ? 'correct' : 'wrong');
-  document.getElementById('fbHint').innerHTML   = ok
-    ? `<strong>Working:</strong> ${hint}`
-    : `<strong>Correct answer:</strong> ${correct}<br><strong>Working:</strong> ${hint}`;
-
-  const isLast = session.idx + 1 >= session.qty;
-  const nxt = isLast ? 'See results 🏆' : 'Next →';
-
-  if (ok) {
-    document.getElementById('fbBtns').className = 'fb-btns one';
-    document.getElementById('fbBtns').innerHTML = `<button class="fbbtn nxt" onclick="advance()">${nxt}</button>`;
+function showFeedback(ok,hint,correct) {
+  const fb=document.getElementById('feedbackEl');
+  fb.className='fb '+(ok?'correct':'wrong');
+  document.getElementById('fbIcon').textContent=ok?'✅':'❌';
+  document.getElementById('fbLbl').textContent =ok?'Correct!':'Incorrect';
+  document.getElementById('fbLbl').className   ='fb-lbl '+(ok?'correct':'wrong');
+  document.getElementById('fbHint').innerHTML  =ok
+    ?`<strong>Working:</strong> ${hint}`
+    :`<strong>Correct answer:</strong> ${correct}<br><strong>Working:</strong> ${hint}`;
+  const isLast=session.idx+1>=session.qty;
+  const nxt=isLast?'See results 🏆':'Next →';
+  if(ok){
+    document.getElementById('fbBtns').className='fb-btns one';
+    document.getElementById('fbBtns').innerHTML=`<button class="fbbtn nxt" onclick="advance()">${nxt}</button>`;
   } else {
-    document.getElementById('fbBtns').className = 'fb-btns two';
-    document.getElementById('fbBtns').innerHTML =
+    document.getElementById('fbBtns').className='fb-btns two';
+    document.getElementById('fbBtns').innerHTML=
       `<button class="fbbtn try" onclick="tryAgain()">↩ Try again</button>
        <button class="fbbtn nxt" onclick="advance()">${nxt}</button>`;
   }
-  fb.style.display = 'block';
+  fb.style.display='block';
 }
 
 function tryAgain() {
-  answered = false;
-  document.getElementById('feedbackEl').style.display = 'none';
-  session.t0[session.idx] = Date.now();
-  document.querySelectorAll('.opt').forEach((b, i) => {
-    b.disabled = false; b.className = 'opt';
-    b.addEventListener('click', () => selAns(i, b));
+  answered=false;
+  document.getElementById('feedbackEl').style.display='none';
+  session.t0[session.idx]=Date.now();
+  document.querySelectorAll('.opt').forEach((b,i)=>{
+    b.disabled=false; b.className='opt';
+    b.addEventListener('click',()=>selAns(i,b));
   });
 }
-
 function advance() {
-  session.idx++;
-  if (session.idx >= session.qty) { showResults(); return; }
-  loadQ();
+  session.idx++; if(session.idx>=session.qty){showResults();return;} loadQ();
 }
 
 function showResults() {
   show('resultsScreen');
-  const pct = Math.round(session.correct / session.qty * 100);
-  const avg = session.answers.length ? (session.totalTime / session.answers.length).toFixed(1) + 's' : '—';
-  document.getElementById('resEmoji').textContent = pct >= 90 ? '🏆' : pct >= 70 ? '🎉' : pct >= 50 ? '👍' : '📚';
-  document.getElementById('resTitle').textContent = pct >= 90 ? 'Outstanding!' : pct >= 70 ? 'Great work!' : pct >= 50 ? 'Good effort!' : 'Keep practising!';
-  document.getElementById('resSub').textContent   = `Scored ${session.correct} out of ${session.qty}`;
-  document.getElementById('resPct').textContent   = pct + '%';
-  document.getElementById('resBest').textContent  = session.best + '🔥';
-  document.getElementById('resTime').textContent  = avg;
-  document.getElementById('reviewItems').innerHTML = session.answers.map(ri).join('');
+  const pct=Math.round(session.correct/session.qty*100);
+  const avg=session.answers.length?(session.totalTime/session.answers.length).toFixed(1)+'s':'—';
+  document.getElementById('resEmoji').textContent=pct>=90?'🏆':pct>=70?'🎉':pct>=50?'👍':'📚';
+  document.getElementById('resTitle').textContent=pct>=90?'Outstanding!':pct>=70?'Great work!':pct>=50?'Good effort!':'Keep practising!';
+  document.getElementById('resSub').textContent  =`Scored ${session.correct} out of ${session.qty}`;
+  document.getElementById('resPct').textContent  =pct+'%';
+  document.getElementById('resBest').textContent =session.best+'🔥';
+  document.getElementById('resTime').textContent =avg;
+  document.getElementById('reviewItems').innerHTML=session.answers.map(ri).join('');
 }
 
 function ri(a) {
   return `<div class="ri">
-    <div style="font-size:16px;flex-shrink:0;margin-top:1px">${a.ok ? '✅' : '❌'}</div>
+    <div style="font-size:16px;flex-shrink:0;margin-top:1px">${a.ok?'✅':'❌'}</div>
     <div style="flex:1;min-width:0">
       <div class="rq">${a.q}</div>
-      <div class="ra">Your answer: <span class="${a.ok ? 'ca' : 'wa'}">${a.chosen}</span>
-        ${!a.ok ? ` · Correct: <span class="ca">${a.right}</span>` : ''}</div>
+      <div class="ra">Your answer: <span class="${a.ok?'ca':'wa'}">${a.chosen}</span>
+        ${!a.ok?` · Correct: <span class="ca">${a.right}</span>`:''}</div>
     </div>
-    <span class="qbadge ${a.cat}" style="margin:0;flex-shrink:0">${CATS[a.cat] ? CATS[a.cat].emoji : '🎲'}</span>
+    <span class="qbadge ${a.cat}" style="margin:0;flex-shrink:0">${CATS[a.cat]?CATS[a.cat].emoji:'🎲'}</span>
   </div>`;
+}
+
+/* ── LEADERBOARD ── */
+const PLACE_MEDALS  = ['🥇','🥈','🥉'];
+const PLACE_LABELS  = ['1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th'];
+const PLACE_COLOURS = ['#f59e0b','#94a3b8','#cd7c2f','#7c5a8a','#7c5a8a','#7c5a8a','#7c5a8a','#7c5a8a','#7c5a8a','#7c5a8a'];
+const CAT_COLOURS   = { speed:'#7c3aed', distance:'#16a34a', time:'#d97706' };
+
+function buildLeaderboard() {
+  const all = getAllSessions();
+  const myId = getSessionId();
+
+  // Compute leaderboard entry for each session
+  const rows = all.map(sess => {
+    const st = sess.state || {};
+    const total  = st.total   || 0;
+    const correct= st.correct || 0;
+    const streak = st.bestStreak || 0;
+    const acc    = total>0 ? Math.round(correct/total*100) : 0;
+    const cats   = st.cats || {};
+    // Per-category accuracy
+    const catAcc = {};
+    ['speed','distance','time'].forEach(c => {
+      const cd = cats[c] || {d:0,c:0};
+      catAcc[c] = cd.d>0 ? Math.round(cd.c/cd.d*100) : null;
+    });
+    return { id:sess.id, name:sess.name, avatar:sess.avatar||'🚀', avatarBg:sess.avatarBg||'av-bg-1',
+      total, correct, acc, streak, catAcc, isMe: sess.id===myId };
+  });
+
+  // Sort: by accuracy desc, then total desc
+  rows.sort((a,b)=>b.acc-a.acc||b.total-a.total);
+  return rows;
+}
+
+function renderLeaderboard() {
+  const el = document.getElementById('leaderboardBody');
+  if (!el) return;
+
+  const rows = buildLeaderboard();
+  const myId = getSessionId();
+
+  if (!rows.length) {
+    el.innerHTML=`<div class="lb-empty">No sessions yet — start a quiz to appear here!</div>`;
+    return;
+  }
+
+  el.innerHTML = rows.map((row, idx) => {
+    const place    = idx < PLACE_MEDALS.length ? PLACE_MEDALS[idx] : `${idx+1}`;
+    const placeLabel = PLACE_LABELS[idx] || `${idx+1}th`;
+    const isMe     = row.id === myId;
+    const highlight = isMe ? ' lb-row-me' : '';
+
+    const catCells = ['speed','distance','time'].map(c => {
+      const v = row.catAcc[c];
+      const display = v===null ? '—' : v+'%';
+      const col = v===null ? '#555' : v>=80?'#16a34a':v>=50?'#d97706':'#dc2626';
+      return `<td class="lb-cat-cell" style="color:${col};font-weight:800;">${display}</td>`;
+    }).join('');
+
+    return `<tr class="lb-row${highlight}" data-id="${row.id}">
+      <td class="lb-place">${place}<span class="lb-place-lbl">${placeLabel}</span></td>
+      <td class="lb-player">
+        <div class="lb-av ${row.avatarBg}">${row.avatar}</div>
+        <div class="lb-name-wrap">
+          <span class="lb-name">${escHtml(row.name)}${isMe?' <span class="lb-you">you</span>':''}</span>
+          <span class="lb-streak">🔥${row.streak}</span>
+        </div>
+      </td>
+      ${catCells}
+      <td class="lb-acc-cell">
+        <div class="lb-acc-bar-wrap">
+          <div class="lb-acc-num">${row.acc}%</div>
+          <div class="lb-acc-bar"><div class="lb-acc-fill" style="width:${row.acc}%"></div></div>
+          <div class="lb-total">${row.total} done</div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 /* ── DASHBOARD ── */
 function updateDash() {
-  // Show session user name in header
   const rec = getSessionRecord();
   const nameEl = document.getElementById('sessionName');
   const avEl   = document.getElementById('sessionAvatar');
   if (rec) {
-    if (nameEl) nameEl.textContent = rec.name;
-    if (avEl)   { avEl.textContent = rec.avatar || '🚀'; avEl.className = 'sess-av-badge ' + (rec.avatarBg || 'av-bg-1'); }
+    if(nameEl) nameEl.textContent = rec.name;
+    if(avEl)   { avEl.textContent=rec.avatar||'🚀'; avEl.className='sess-av-badge '+(rec.avatarBg||'av-bg-1'); }
   }
-
   document.getElementById('hTotal').textContent   = state.total;
   document.getElementById('hCorrect').textContent = state.correct;
-  document.getElementById('hAcc').textContent     = state.total > 0 ? Math.round(state.correct / state.total * 100) + '%' : '—';
-  document.getElementById('hStreak').textContent  = state.bestStreak + '🔥';
-  ['speed','distance','time','conversion'].forEach(c => {
-    const s = state.cats[c];
-    document.getElementById('pg-' + c).style.width = (s.d > 0 ? Math.round(s.c / s.d * 100) : 0) + '%';
+  document.getElementById('hAcc').textContent     = state.total>0 ? Math.round(state.correct/state.total*100)+'%' : '—';
+  document.getElementById('hStreak').textContent  = state.bestStreak+'🔥';
+  ['speed','distance','time'].forEach(c=>{
+    const s=state.cats[c];
+    const el=document.getElementById('pg-'+c);
+    if(el) el.style.width=(s.d>0?Math.round(s.c/s.d*100):0)+'%';
   });
-  document.getElementById('histBtn').classList.toggle('hidden', state.total === 0);
+  document.getElementById('histBtn').classList.toggle('hidden', state.total===0);
 }
 
 function resetAll() {
-  state = emptyState();
-  saveState();
-  updateDash();
+  state=emptyState(); saveState(); updateDash(); renderLeaderboard();
 }
 
-/* ── PERSISTENCE — per session ── */
+/* ── PERSISTENCE ── */
 function saveState() {
-  const rec = getSessionRecord();
-  if (!rec) return;
-  rec.state = state;
-  rec.lastActive = Date.now();
-  saveSessionRecord(rec);
+  const rec=getSessionRecord(); if(!rec)return;
+  rec.state=state; rec.lastActive=Date.now(); saveSessionRecord(rec);
 }
-
 function loadState() {
-  const rec = getSessionRecord();
-  if (rec && rec.state) {
-    state = { ...emptyState(), ...rec.state };
-  }
+  const rec=getSessionRecord();
+  if(rec&&rec.state) state={...emptyState(),...rec.state};
 }
 
-/* ── AUTH & LOGOUT ── */
+/* ── AUTH ── */
 function doLogout() {
-  if (confirm('Sign out and return to the login page?')) {
+  if(confirm('Sign out and return to the login page?')) {
     sessionStorage.removeItem('sdt_auth');
     sessionStorage.removeItem('sdt_session_id');
     window.location.replace('login.html');
@@ -529,6 +503,4 @@ function doLogout() {
 }
 
 /* ── INIT ── */
-loadState();
-setCat('mixed');
-updateDash();
+loadState(); setCat('mixed'); updateDash(); renderLeaderboard();
