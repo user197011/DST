@@ -662,3 +662,122 @@ body {
   border-top: 0.5px solid rgba(200,160,255,0.15);
   background: #faf5ff;
 }
+
+/* ═══════════════════════════════════════
+   SCORE COLUMN & UPDATES
+═══════════════════════════════════════ */
+
+/* Score stat tile in hero — wider, gold tint */
+.sc-score {
+  grid-column: span 2;
+  background: rgba(245,158,11,0.15) !important;
+  border: 1px solid rgba(245,158,11,0.3) !important;
+}
+.sc-n-score {
+  color: #f59e0b !important;
+  font-size: 22px !important;
+}
+
+/* Wider stats row to fit 5 tiles (2+2+2+2+4 columns if using span) */
+.stats-row {
+  grid-template-columns: repeat(4, minmax(0,1fr)) !important;
+}
+
+/* ── NEW LEADERBOARD SCORE COLUMN ── */
+.lb-th-score {
+  min-width: 62px;
+  text-align: center;
+  padding-right: 10px !important;
+}
+
+.lb-score-cell {
+  padding: 8px 10px 8px 4px !important;
+  min-width: 62px;
+}
+
+.lb-score-num {
+  font-family: 'Nunito', sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  margin-bottom: 3px;
+}
+
+.lb-score-bar {
+  height: 4px;
+  background: #ede9fe;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.lb-score-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+}
+
+.lb-score-lbl {
+  font-size: 9px;
+  color: #7c5a8a;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── UPDATED CAT CELLS ── */
+.lb-cat-cell {
+  text-align: center;
+  padding: 6px 3px !important;
+  vertical-align: middle;
+}
+
+.lb-cat-acc {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.lb-cat-done {
+  font-size: 9px;
+  color: #7c5a8a;
+  white-space: nowrap;
+}
+
+/* ── PLACE CELL ── */
+.lb-place-inner {
+  font-size: 18px;
+  font-weight: 900;
+  font-family: 'Nunito', sans-serif;
+  text-align: center;
+  line-height: 1;
+}
+
+/* ── STREAK IN PLAYER CELL ── */
+.lb-streak {
+  font-size: 10px;
+  color: #7c5a8a;
+  margin-top: 2px;
+}
+
+/* ── ACCURACY CELL ── */
+.lb-acc-cell {
+  padding: 6px 6px 6px 4px !important;
+  min-width: 70px;
+}
+.lb-acc-num {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  color: #1e0533;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+.lb-total {
+  font-size: 9px;
+  color: #7c5a8a;
+  margin-top: 2px;
+  white-space: nowrap;
+}

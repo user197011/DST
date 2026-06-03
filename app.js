@@ -375,36 +375,51 @@ function ri(a) {
   </div>`;
 }
 
-/* ── LEADERBOARD ── */
-const PLACE_MEDALS  = ['🥇','🥈','🥉'];
-const PLACE_LABELS  = ['1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th'];
-const PLACE_COLOURS = ['#f59e0b','#94a3b8','#cd7c2f','#7c5a8a','#7c5a8a','#7c5a8a','#7c5a8a','#7c5a8a','#7c5a8a','#7c5a8a'];
-const CAT_COLOURS   = { speed:'#7c3aed', distance:'#16a34a', time:'#d97706' };
+/* ── SCORING ──
+   Score = correct × accuracy  (e.g. 80 correct at 90% acc = 7200 pts)
+   This rewards both volume (questions done) and quality (accuracy).
+   Displayed as integer points, sorted highest → lowest. */
+
+const PLACE_MEDALS = ['🥇','🥈','🥉'];
+
+function calcScore(correct, total) {
+  if (!total || !correct) return 0;
+  const acc = Math.round(correct / total * 100);
+  return correct * acc; // e.g. 80 correct × 90% = 7200
+}
+
+function fmtScore(score) {
+  if (score >= 1000) return (score/1000).toFixed(1).replace(/\.0$/,'') + 'k';
+  return String(score);
+}
 
 function buildLeaderboard() {
-  const all = getAllSessions();
+  const all  = getAllSessions();
   const myId = getSessionId();
 
-  // Compute leaderboard entry for each session
   const rows = all.map(sess => {
-    const st = sess.state || {};
-    const total  = st.total   || 0;
-    const correct= st.correct || 0;
+    const st     = sess.state || {};
+    const total  = st.total    || 0;
+    const correct= st.correct  || 0;
     const streak = st.bestStreak || 0;
-    const acc    = total>0 ? Math.round(correct/total*100) : 0;
+    const acc    = total > 0 ? Math.round(correct / total * 100) : 0;
+    const score  = calcScore(correct, total);
     const cats   = st.cats || {};
-    // Per-category accuracy
-    const catAcc = {};
+    const catData = {};
     ['speed','distance','time'].forEach(c => {
       const cd = cats[c] || {d:0,c:0};
-      catAcc[c] = cd.d>0 ? Math.round(cd.c/cd.d*100) : null;
+      catData[c] = {
+        done:    cd.d || 0,
+        correct: cd.c || 0,
+        acc:     cd.d > 0 ? Math.round(cd.c / cd.d * 100) : null
+      };
     });
     return { id:sess.id, name:sess.name, avatar:sess.avatar||'🚀', avatarBg:sess.avatarBg||'av-bg-1',
-      total, correct, acc, streak, catAcc, isMe: sess.id===myId };
+      total, correct, acc, score, streak, catData, isMe: sess.id === myId };
   });
 
-  // Sort: by accuracy desc, then total desc
-  rows.sort((a,b)=>b.acc-a.acc||b.total-a.total);
+  // Sort by score desc, then accuracy desc, then total desc
+  rows.sort((a,b) => b.score - a.score || b.acc - a.acc || b.total - a.total);
   return rows;
 }
 
@@ -416,30 +431,46 @@ function renderLeaderboard() {
   const myId = getSessionId();
 
   if (!rows.length) {
-    el.innerHTML=`<div class="lb-empty">No sessions yet — start a quiz to appear here!</div>`;
+    el.innerHTML = `<tr><td colspan="7" class="lb-empty">No sessions yet — start a quiz to appear here!</td></tr>`;
     return;
   }
 
+  // Find max score for bar scaling
+  const maxScore = Math.max(...rows.map(r => r.score), 1);
+
   el.innerHTML = rows.map((row, idx) => {
-    const place    = idx < PLACE_MEDALS.length ? PLACE_MEDALS[idx] : `${idx+1}`;
-    const placeLabel = PLACE_LABELS[idx] || `${idx+1}th`;
-    const isMe     = row.id === myId;
+    const place     = idx < PLACE_MEDALS.length ? PLACE_MEDALS[idx] : `${idx+1}`;
+    const isMe      = row.id === myId;
     const highlight = isMe ? ' lb-row-me' : '';
 
+    // Category cells: show correct/done and accuracy%
     const catCells = ['speed','distance','time'].map(c => {
-      const v = row.catAcc[c];
-      const display = v===null ? '—' : v+'%';
-      const col = v===null ? '#555' : v>=80?'#16a34a':v>=50?'#d97706':'#dc2626';
-      return `<td class="lb-cat-cell" style="color:${col};font-weight:800;">${display}</td>`;
+      const cd  = row.catData[c];
+      const acc = cd.acc;
+      const col = acc === null ? '#777' : acc >= 80 ? '#16a34a' : acc >= 50 ? '#d97706' : '#dc2626';
+      const accTxt = acc === null ? '—' : acc + '%';
+      const doneTxt= cd.done > 0 ? `${cd.correct}/${cd.done}` : '—';
+      return `<td class="lb-cat-cell">
+        <div class="lb-cat-acc" style="color:${col}">${accTxt}</div>
+        <div class="lb-cat-done">${doneTxt}</div>
+      </td>`;
     }).join('');
 
+    // Score bar width relative to top scorer
+    const barPct = maxScore > 0 ? Math.round(row.score / maxScore * 100) : 0;
+
+    // Position badge colour
+    const posColour = idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : idx === 2 ? '#cd7c2f' : '#7c5a8a';
+
     return `<tr class="lb-row${highlight}" data-id="${row.id}">
-      <td class="lb-place">${place}<span class="lb-place-lbl">${placeLabel}</span></td>
+      <td class="lb-place">
+        <div class="lb-place-inner" style="color:${posColour}">${place}</div>
+      </td>
       <td class="lb-player">
         <div class="lb-av ${row.avatarBg}">${row.avatar}</div>
         <div class="lb-name-wrap">
-          <span class="lb-name">${escHtml(row.name)}${isMe?' <span class="lb-you">you</span>':''}</span>
-          <span class="lb-streak">🔥${row.streak}</span>
+          <span class="lb-name">${escHtml(row.name)}${isMe ? ' <span class="lb-you">you</span>' : ''}</span>
+          <span class="lb-streak">🔥 ${row.streak} &nbsp;·&nbsp; ${row.total} done &nbsp;·&nbsp; ${row.acc}% acc</span>
         </div>
       </td>
       ${catCells}
@@ -447,8 +478,13 @@ function renderLeaderboard() {
         <div class="lb-acc-bar-wrap">
           <div class="lb-acc-num">${row.acc}%</div>
           <div class="lb-acc-bar"><div class="lb-acc-fill" style="width:${row.acc}%"></div></div>
-          <div class="lb-total">${row.total} done</div>
+          <div class="lb-total">${row.correct} correct / ${row.total}</div>
         </div>
+      </td>
+      <td class="lb-score-cell">
+        <div class="lb-score-num" style="color:${posColour}">${fmtScore(row.score)}</div>
+        <div class="lb-score-bar"><div class="lb-score-fill" style="width:${barPct}%;background:${posColour}"></div></div>
+        <div class="lb-score-lbl">pts</div>
       </td>
     </tr>`;
   }).join('');
@@ -467,10 +503,13 @@ function updateDash() {
     if(nameEl) nameEl.textContent = rec.name;
     if(avEl)   { avEl.textContent=rec.avatar||'🚀'; avEl.className='sess-av-badge '+(rec.avatarBg||'av-bg-1'); }
   }
+  const myScore = calcScore(state.correct, state.total);
   document.getElementById('hTotal').textContent   = state.total;
   document.getElementById('hCorrect').textContent = state.correct;
   document.getElementById('hAcc').textContent     = state.total>0 ? Math.round(state.correct/state.total*100)+'%' : '—';
   document.getElementById('hStreak').textContent  = state.bestStreak+'🔥';
+  const scoreEl = document.getElementById('hScore');
+  if (scoreEl) scoreEl.textContent = fmtScore(myScore);
   ['speed','distance','time'].forEach(c=>{
     const s=state.cats[c];
     const el=document.getElementById('pg-'+c);
