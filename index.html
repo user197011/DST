@@ -23,7 +23,13 @@
   <div id="homeScreen" class="screen active">
     <div class="hero">
       <div class="hero-topbar">
-        <div class="hero-title">Speed · Distance · Time</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="sessionAvatar" class="sess-av-badge av-bg-1">🚀</div>
+          <div>
+            <div class="hero-title">Speed · Distance · Time</div>
+            <div class="hero-user">Signed in as <strong id="sessionName">…</strong></div>
+          </div>
+        </div>
         <button class="logout-btn" onclick="doLogout()" title="Sign out">⎋ Exit</button>
       </div>
       <div class="hero-sub">2000 questions · Rotated &amp; randomised</div>

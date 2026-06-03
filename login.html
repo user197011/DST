@@ -18,41 +18,28 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+      overflow-x: hidden;
       position: relative;
+      padding: 1rem;
     }
 
-    /* ── ANIMATED BACKGROUND ORBS ── */
-    .orb {
-      position: fixed;
-      border-radius: 50%;
-      filter: blur(80px);
-      opacity: 0.35;
-      pointer-events: none;
-      animation: drift 12s ease-in-out infinite alternate;
-    }
-    .orb-1 { width: 420px; height: 420px; background: #7c3aed; top: -120px; left: -80px; animation-delay: 0s; }
-    .orb-2 { width: 300px; height: 300px; background: #e040fb; bottom: -80px; right: -60px; animation-delay: -4s; }
-    .orb-3 { width: 200px; height: 200px; background: #4f46e5; top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -8s; }
-    @keyframes drift {
-      from { transform: translate(0, 0) scale(1); }
-      to   { transform: translate(30px, 20px) scale(1.08); }
-    }
-    .orb-3 { animation-name: drift3; }
-    @keyframes drift3 {
-      from { transform: translate(-50%,-50%) scale(1); }
-      to   { transform: translate(calc(-50% + 20px), calc(-50% - 15px)) scale(1.1); }
-    }
+    /* ── ANIMATED ORBS ── */
+    .orb { position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.35; pointer-events: none; }
+    .orb-1 { width: 420px; height: 420px; background: #7c3aed; top: -120px; left: -80px;  animation: drift1 14s ease-in-out infinite alternate; }
+    .orb-2 { width: 300px; height: 300px; background: #e040fb; bottom: -80px; right: -60px; animation: drift2 11s ease-in-out infinite alternate; }
+    .orb-3 { width: 200px; height: 200px; background: #4f46e5; top: 45%; left: 45%;        animation: drift3 9s  ease-in-out infinite alternate; }
+    @keyframes drift1 { from{transform:translate(0,0);}       to{transform:translate(25px,18px);} }
+    @keyframes drift2 { from{transform:translate(0,0);}       to{transform:translate(-20px,-15px);} }
+    @keyframes drift3 { from{transform:translate(-50%,-50%);} to{transform:translate(calc(-50% + 20px),calc(-50% - 12px));} }
 
     /* ── CARD ── */
     .card {
-      position: relative;
-      z-index: 10;
-      width: min(420px, calc(100vw - 32px));
+      position: relative; z-index: 10;
+      width: min(440px, 100%);
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 28px;
-      padding: 2.5rem 2rem;
+      padding: 2rem 1.75rem 1.75rem;
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       animation: slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
@@ -62,302 +49,528 @@
       to   { opacity: 1; transform: none; }
     }
 
-    /* ── LOGO AREA ── */
-    .logo-area { text-align: center; margin-bottom: 2rem; }
-
+    /* ── LOGO ── */
+    .logo-area { text-align: center; margin-bottom: 1.5rem; }
     .logo-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 72px; height: 72px;
-      border-radius: 22px;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 68px; height: 68px; border-radius: 22px;
       background: linear-gradient(135deg, #7c3aed, #e040fb);
-      margin-bottom: 1rem;
+      margin-bottom: 0.875rem;
       box-shadow: 0 8px 32px rgba(124,58,237,0.5);
     }
+    .logo-title { font-family:'Nunito',sans-serif; font-size: 21px; font-weight: 900; color: #fff; letter-spacing:-0.3px; margin-bottom: 3px; }
+    .logo-sub   { font-size: 12px; color: rgba(255,255,255,0.5); }
 
-    .logo-tri {
-      /* inline SVG triangle */
+    /* ── VIEWS (step switcher) ── */
+    .view { display: none; }
+    .view.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:none;} }
+
+    /* ── SECTION LABEL ── */
+    .slbl {
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.45);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 8px; margin-top: 2px;
     }
 
-    .logo-title {
-      font-family: 'Nunito', sans-serif;
-      font-size: 22px;
-      font-weight: 900;
-      color: #fff;
-      letter-spacing: -0.3px;
-      margin-bottom: 4px;
-    }
+    /* ── ACTIVE SESSIONS ── */
+    .sessions-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 
-    .logo-sub {
-      font-size: 13px;
-      color: rgba(255,255,255,0.55);
-    }
-
-    /* ── STATS STRIP ── */
-    .stats-strip {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 2rem;
-    }
-    .ss {
+    .sess-card {
+      display: flex; align-items: center; gap: 12px;
       background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px;
-      padding: 10px 6px;
-      text-align: center;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px; padding: 11px 14px;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s;
+      touch-action: manipulation;
     }
-    .ss-n {
-      font-family: 'Nunito', sans-serif;
-      font-size: 20px;
-      font-weight: 900;
-      color: #fff;
-      line-height: 1;
-    }
-    .ss-n span { font-size: 14px; }
-    .ss-l {
-      font-size: 10px;
-      color: rgba(255,255,255,0.5);
-      margin-top: 3px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    .sess-card:hover  { background: rgba(255,255,255,0.12); border-color: rgba(168,85,247,0.5); }
+    .sess-card:active { background: rgba(168,85,247,0.2); }
+
+    .sess-avatar {
+      width: 38px; height: 38px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+      font-family: 'Nunito', sans-serif; font-weight: 900;
     }
 
-    /* ── FORM ── */
-    .form-label {
-      font-size: 12px;
-      font-weight: 700;
-      color: rgba(255,255,255,0.6);
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      margin-bottom: 8px;
-      display: block;
-    }
+    .sess-info { flex: 1; min-width: 0; }
+    .sess-name { font-family:'Nunito',sans-serif; font-weight: 800; font-size: 14px; color: #fff; margin-bottom: 2px; }
+    .sess-meta { font-size: 11px; color: rgba(255,255,255,0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .input-wrap {
-      position: relative;
-      margin-bottom: 16px;
+    .sess-stats { display: flex; gap: 8px; flex-shrink: 0; }
+    .ss-chip {
+      background: rgba(255,255,255,0.08); border-radius: 8px;
+      padding: 4px 8px; text-align: center;
     }
+    .ss-chip-n { font-family:'Nunito',sans-serif; font-size: 13px; font-weight: 900; color: #fff; line-height: 1; }
+    .ss-chip-l { font-size: 8px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 1px; }
 
-    .pw-input {
-      width: 100%;
-      padding: 14px 48px 14px 16px;
+    .sess-card .sess-arrow { font-size: 16px; color: rgba(255,255,255,0.3); flex-shrink: 0; }
+
+    .sess-del {
+      background: none; border: none; color: rgba(255,100,100,0.5);
+      font-size: 16px; cursor: pointer; padding: 4px; line-height: 1;
+      touch-action: manipulation; flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .sess-del:hover { color: rgba(255,100,100,0.9); }
+
+    /* ── NEW SESSION BUTTON ── */
+    .new-sess-btn {
+      width: 100%; padding: 12px;
+      background: rgba(168,85,247,0.15);
+      border: 1.5px dashed rgba(168,85,247,0.4);
+      border-radius: 14px;
+      color: rgba(168,85,247,0.9);
+      font-family:'Nunito',sans-serif; font-size: 14px; font-weight: 800;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s;
+      touch-action: manipulation; margin-bottom: 14px;
+    }
+    .new-sess-btn:hover  { background: rgba(168,85,247,0.25); border-color: rgba(168,85,247,0.7); }
+    .new-sess-btn:active { background: rgba(168,85,247,0.35); }
+
+    /* ── DIVIDER ── */
+    .divider { display:flex; align-items:center; gap: 10px; margin: 4px 0 14px; }
+    .divider::before, .divider::after { content:''; flex:1; height:1px; background: rgba(255,255,255,0.1); }
+    .divider span { font-size: 11px; color: rgba(255,255,255,0.3); white-space: nowrap; }
+
+    /* ── FORM FIELDS ── */
+    .field-group { margin-bottom: 12px; }
+    .field-label { display: block; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+
+    .field-input {
+      width: 100%; padding: 13px 16px;
       background: rgba(255,255,255,0.08);
       border: 1.5px solid rgba(255,255,255,0.15);
-      border-radius: 14px;
-      color: #fff;
-      font-family: 'Nunito Sans', sans-serif;
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      outline: none;
-      transition: border-color 0.2s, background 0.2s;
+      border-radius: 13px; color: #fff;
+      font-family:'Nunito Sans',sans-serif; font-size: 15px; font-weight: 600;
+      outline: none; transition: border-color 0.2s, background 0.2s;
       -webkit-appearance: none;
     }
-    .pw-input::placeholder { color: rgba(255,255,255,0.3); font-weight: 400; letter-spacing: 0; }
-    .pw-input:focus { border-color: #a855f7; background: rgba(255,255,255,0.12); }
-    .pw-input.error { border-color: #ef4444; animation: shake 0.35s ease; }
-    @keyframes shake {
-      0%,100% { transform: translateX(0); }
-      20%      { transform: translateX(-8px); }
-      40%      { transform: translateX(8px); }
-      60%      { transform: translateX(-5px); }
-      80%      { transform: translateX(5px); }
-    }
+    .field-input::placeholder { color: rgba(255,255,255,0.25); font-weight: 400; }
+    .field-input:focus { border-color: #a855f7; background: rgba(255,255,255,0.12); }
+    .field-input.error { border-color: #ef4444; animation: shake 0.35s ease; }
 
+    .pw-wrap { position: relative; }
+    .pw-wrap .field-input { padding-right: 46px; letter-spacing: 0.04em; }
     .toggle-vis {
-      position: absolute;
-      right: 14px; top: 50%;
-      transform: translateY(-50%);
-      background: none; border: none;
-      color: rgba(255,255,255,0.4);
-      cursor: pointer; font-size: 18px;
-      padding: 4px; line-height: 1;
+      position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: rgba(255,255,255,0.4);
+      cursor: pointer; font-size: 17px; padding: 4px; line-height: 1;
       touch-action: manipulation;
     }
     .toggle-vis:hover { color: rgba(255,255,255,0.8); }
 
-    .error-msg {
-      font-size: 12px;
-      color: #f87171;
-      margin-top: -10px;
-      margin-bottom: 12px;
-      display: none;
-      padding-left: 4px;
+    @keyframes shake {
+      0%,100%{transform:translateX(0);}20%{transform:translateX(-8px);}
+      40%{transform:translateX(8px);}60%{transform:translateX(-5px);}80%{transform:translateX(5px);}
     }
-    .error-msg.show { display: block; animation: fadeIn 0.2s ease; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-    .login-btn {
-      width: 100%;
-      padding: 15px;
-      background: linear-gradient(135deg, #7c3aed, #e040fb);
-      color: #fff;
-      border: none;
-      border-radius: 14px;
-      font-family: 'Nunito', sans-serif;
-      font-size: 17px;
-      font-weight: 900;
-      cursor: pointer;
-      letter-spacing: 0.2px;
-      transition: opacity 0.15s, transform 0.15s;
+    /* ── AVATAR PICKER ── */
+    .avatar-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+    .av-opt {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; cursor: pointer; border: 2px solid transparent;
+      background: rgba(255,255,255,0.07); transition: all 0.15s;
       touch-action: manipulation;
-      position: relative;
-      overflow: hidden;
     }
-    .login-btn:active { opacity: 0.85; transform: scale(0.98); }
-    .login-btn.loading { pointer-events: none; }
-    .login-btn.loading::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.2);
+    .av-opt:hover  { background: rgba(255,255,255,0.15); }
+    .av-opt.picked { border-color: #a855f7; background: rgba(168,85,247,0.25); transform: scale(1.1); }
+
+    /* ── ERROR ── */
+    .err-msg { font-size: 12px; color: #f87171; margin-top: 4px; margin-bottom: 8px; display: none; padding-left: 2px; }
+    .err-msg.show { display: block; animation: fadeIn 0.2s ease; }
+
+    /* ── MAIN BUTTON ── */
+    .main-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #7c3aed, #e040fb);
+      color: #fff; border: none; border-radius: 14px;
+      font-family:'Nunito',sans-serif; font-size: 16px; font-weight: 900;
+      cursor: pointer; transition: opacity 0.15s, transform 0.15s;
+      touch-action: manipulation; margin-bottom: 10px;
     }
+    .main-btn:active { opacity: 0.85; transform: scale(0.98); }
+    .main-btn:disabled { opacity: 0.5; cursor: default; }
+
+    /* ── BACK LINK ── */
+    .back-link {
+      background: none; border: none; color: rgba(255,255,255,0.45);
+      font-size: 13px; font-weight: 600; cursor: pointer; padding: 0;
+      font-family:'Nunito Sans',sans-serif; display: flex; align-items: center; gap: 4px;
+      margin-bottom: 14px; touch-action: manipulation;
+    }
+    .back-link:hover { color: rgba(255,255,255,0.8); }
 
     /* ── FOOTER ── */
-    .card-footer {
-      text-align: center;
-      margin-top: 1.5rem;
-      font-size: 12px;
-      color: rgba(255,255,255,0.3);
-    }
+    .card-footer { text-align: center; margin-top: 1rem; font-size: 11px; color: rgba(255,255,255,0.2); }
 
-    /* ── FEATURE PILLS ── */
-    .features {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: center;
-      margin-bottom: 1.5rem;
-    }
-    .fp {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 99px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.65);
-    }
+    /* ── COLOUR OPTIONS for avatars ── */
+    .av-bg-1 { background: linear-gradient(135deg,#7c3aed,#a855f7) !important; }
+    .av-bg-2 { background: linear-gradient(135deg,#0ea5e9,#06b6d4) !important; }
+    .av-bg-3 { background: linear-gradient(135deg,#16a34a,#22c55e) !important; }
+    .av-bg-4 { background: linear-gradient(135deg,#ea580c,#f97316) !important; }
+    .av-bg-5 { background: linear-gradient(135deg,#db2777,#ec4899) !important; }
+    .av-bg-6 { background: linear-gradient(135deg,#d97706,#fbbf24) !important; }
   </style>
 </head>
 <body>
 
-<!-- Background orbs -->
 <div class="orb orb-1"></div>
 <div class="orb orb-2"></div>
 <div class="orb orb-3"></div>
 
 <div class="card">
 
-  <!-- Logo -->
+  <!-- LOGO -->
   <div class="logo-area">
     <div class="logo-badge">
       <svg viewBox="0 0 60 54" width="40" height="36" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="30,2 58,52 2,52" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linejoin="round"/>
-        <line x1="30" y1="27" x2="2"  y2="52" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
-        <line x1="30" y1="27" x2="58" y2="52" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
-        <line x1="11" y1="37" x2="49" y2="37" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
-        <text x="30" y="35" text-anchor="middle" font-size="8" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">D</text>
-        <text x="16" y="50" text-anchor="middle" font-size="7" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">S</text>
-        <text x="44" y="50" text-anchor="middle" font-size="7" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">T</text>
+        <polygon points="30,2 58,52 2,52" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="30" y1="27" x2="2"  y2="52" stroke="rgba(255,255,255,0.55)" stroke-width="1.5"/>
+        <line x1="30" y1="27" x2="58" y2="52" stroke="rgba(255,255,255,0.55)" stroke-width="1.5"/>
+        <line x1="11" y1="37" x2="49" y2="37" stroke="rgba(255,255,255,0.55)" stroke-width="1.5"/>
+        <text x="30" y="35" text-anchor="middle" font-size="8.5" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">D</text>
+        <text x="16" y="50" text-anchor="middle" font-size="7.5" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">S</text>
+        <text x="44" y="50" text-anchor="middle" font-size="7.5" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">T</text>
       </svg>
     </div>
     <div class="logo-title">Speed · Distance · Time</div>
-    <div class="logo-sub">Practice quiz · 2000 questions</div>
+    <div class="logo-sub">2000 questions · Multiple sessions supported</div>
   </div>
 
-  <!-- Feature pills -->
-  <div class="features">
-    <span class="fp">🔢 Whole numbers</span>
-    <span class="fp">🔣 Decimals</span>
-    <span class="fp">🎲 4 categories</span>
-    <span class="fp">📱 Mobile ready</span>
+  <!-- ══ VIEW 1: SESSION PICKER ══ -->
+  <div id="viewPicker" class="view active">
+    <div class="slbl">Your sessions</div>
+    <div class="sessions-list" id="sessionsList">
+      <!-- injected by JS -->
+    </div>
+    <button class="new-sess-btn" onclick="showNewSession()">＋ Start a new session</button>
+    <div class="card-footer">Enter password to access · HappyDTS</div>
   </div>
 
-  <!-- Quick stats from saved progress -->
-  <div class="stats-strip">
-    <div class="ss"><div class="ss-n" id="ls-total">—</div><div class="ss-l">Questions done</div></div>
-    <div class="ss"><div class="ss-n" id="ls-acc">—</div><div class="ss-l">Accuracy</div></div>
-    <div class="ss"><div class="ss-n" id="ls-streak">—<span>🔥</span></div><div class="ss-l">Best streak</div></div>
+  <!-- ══ VIEW 2: PASSWORD (resuming existing) ══ -->
+  <div id="viewResume" class="view">
+    <button class="back-link" onclick="showPicker()">← Back</button>
+    <div class="slbl">Continue as</div>
+    <div id="resumeWho" style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:12px 14px;margin-bottom:16px;">
+      <div class="sess-avatar" id="resumeAvatar" style="font-size:22px;">😊</div>
+      <div>
+        <div class="sess-name" id="resumeName">User</div>
+        <div class="sess-meta" id="resumeMeta">Loading stats…</div>
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="resumePw">Password</label>
+      <div class="pw-wrap">
+        <input id="resumePw" type="password" class="field-input" placeholder="Enter password"
+          autocomplete="current-password" autocorrect="off" autocapitalize="off" spellcheck="false"
+          onkeydown="if(event.key==='Enter')doResume()" />
+        <button class="toggle-vis" onclick="toggleVis('resumePw')" type="button">👁</button>
+      </div>
+      <div class="err-msg" id="resumeErr">Incorrect password. Please try again.</div>
+    </div>
+    <button class="main-btn" onclick="doResume()">Continue →</button>
   </div>
 
-  <!-- Login form -->
-  <label class="form-label" for="pwInput">Enter password to continue</label>
-  <div class="input-wrap">
-    <input
-      id="pwInput"
-      type="password"
-      class="pw-input"
-      placeholder="Password"
-      autocomplete="current-password"
-      autocorrect="off"
-      autocapitalize="off"
-      spellcheck="false"
-      onkeydown="if(event.key==='Enter')doLogin()"
-    />
-    <button class="toggle-vis" onclick="toggleVis()" aria-label="Show/hide password" type="button">👁</button>
+  <!-- ══ VIEW 3: NEW SESSION FORM ══ -->
+  <div id="viewNew" class="view">
+    <button class="back-link" onclick="showPicker()">← Back</button>
+    <div class="slbl">Create your session</div>
+
+    <div class="field-group">
+      <label class="field-label" for="newName">Your name or nickname</label>
+      <input id="newName" type="text" class="field-input" placeholder="e.g. Alex, Student 1, Class 4B"
+        autocorrect="off" spellcheck="false" maxlength="24"
+        onkeydown="if(event.key==='Enter')document.getElementById('newPw').focus()" />
+      <div class="err-msg" id="nameErr">Please enter a name (max 24 characters).</div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Choose your avatar</label>
+      <div class="avatar-picker" id="avatarPicker">
+        <!-- injected by JS -->
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label" for="newPw">Quiz password</label>
+      <div class="pw-wrap">
+        <input id="newPw" type="password" class="field-input" placeholder="Enter password"
+          autocomplete="current-password" autocorrect="off" autocapitalize="off" spellcheck="false"
+          onkeydown="if(event.key==='Enter')doNewSession()" />
+        <button class="toggle-vis" onclick="toggleVis('newPw')" type="button">👁</button>
+      </div>
+      <div class="err-msg" id="newPwErr">Incorrect password. Please try again.</div>
+    </div>
+
+    <button class="main-btn" onclick="doNewSession()">Start fresh session →</button>
   </div>
-  <div class="error-msg" id="errMsg">Incorrect password. Please try again.</div>
 
-  <button class="login-btn" id="loginBtn" onclick="doLogin()">
-    Enter Quiz →
-  </button>
-
-  <div class="card-footer">Protected access · HappyDTS</div>
-
-</div>
+</div><!-- /card -->
 
 <script>
-  /* ── Load saved stats to show on login page ── */
-  (function(){
-    try {
-      const saved = JSON.parse(localStorage.getItem('sdt_state') || '{}');
-      const total   = saved.total   || 0;
-      const correct = saved.correct || 0;
-      const streak  = saved.bestStreak || 0;
-      document.getElementById('ls-total').textContent  = total || '—';
-      document.getElementById('ls-acc').textContent    = total > 0 ? Math.round(correct/total*100)+'%' : '—';
-      document.getElementById('ls-streak').innerHTML   = streak > 0 ? streak+'<span>🔥</span>' : '—<span>🔥</span>';
-    } catch(e) {}
-  })();
+/* ═══════════════════════════════════════════
+   MULTI-SESSION LOGIN  ·  login.html
+   Password: HappyDTS
+   Each session gets its own localStorage key:
+     sdt_session_{id}   → { id, name, avatar, avatarBg, created, lastActive, state:{…} }
+   Session list index:
+     sdt_sessions       → [ id, id, … ]
+═══════════════════════════════════════════ */
 
-  /* ── Auto-redirect if already authenticated this session ── */
-  if (sessionStorage.getItem('sdt_auth') === '1') {
+const CORRECT_PW   = 'HappyDTS';
+const SESSIONS_KEY = 'sdt_sessions';
+const SESSION_PFX  = 'sdt_session_';
+
+const AVATARS = [
+  { emoji:'🚀', bg:'av-bg-1' }, { emoji:'⚡', bg:'av-bg-2' },
+  { emoji:'🌟', bg:'av-bg-3' }, { emoji:'🔥', bg:'av-bg-4' },
+  { emoji:'💜', bg:'av-bg-5' }, { emoji:'🏆', bg:'av-bg-6' },
+  { emoji:'🎯', bg:'av-bg-1' }, { emoji:'🧠', bg:'av-bg-2' },
+  { emoji:'🎲', bg:'av-bg-3' }, { emoji:'🦋', bg:'av-bg-4' },
+];
+
+let pickedAvatar = AVATARS[0];
+let resumeTarget = null; // session id being resumed
+
+/* ── UTILS ── */
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function getSessionIds() {
+  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
+}
+
+function getSession(id) {
+  try { return JSON.parse(localStorage.getItem(SESSION_PFX + id)); } catch { return null; }
+}
+
+function saveSession(sess) {
+  localStorage.setItem(SESSION_PFX + sess.id, JSON.stringify(sess));
+}
+
+function deleteSession(id) {
+  localStorage.removeItem(SESSION_PFX + id);
+  const ids = getSessionIds().filter(i => i !== id);
+  localStorage.setItem(SESSIONS_KEY, JSON.stringify(ids));
+}
+
+function registerSessionId(id) {
+  const ids = getSessionIds();
+  if (!ids.includes(id)) ids.push(id);
+  localStorage.setItem(SESSIONS_KEY, JSON.stringify(ids));
+}
+
+function emptyState() {
+  return { total:0, correct:0, bestStreak:0,
+    cats:{ speed:{d:0,c:0}, distance:{d:0,c:0}, time:{d:0,c:0}, conversion:{d:0,c:0} },
+    history:[] };
+}
+
+function fmtDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + ' ' +
+         d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+}
+
+function sessionMeta(sess) {
+  const st = sess.state || {};
+  const total   = st.total   || 0;
+  const correct = st.correct || 0;
+  const acc     = total > 0 ? Math.round(correct/total*100)+'%' : '—%';
+  const streak  = st.bestStreak || 0;
+  return { total, correct, acc, streak };
+}
+
+/* ── VIEW SWITCHER ── */
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function showPicker()     { renderSessions(); showView('viewPicker'); }
+function showNewSession() { renderAvatarPicker(); showView('viewNew'); document.getElementById('newName').focus(); }
+
+/* ── RENDER SESSION LIST ── */
+function renderSessions() {
+  const ids  = getSessionIds();
+  const list = document.getElementById('sessionsList');
+
+  const sessions = ids.map(id => getSession(id)).filter(Boolean)
+    .sort((a,b) => (b.lastActive||0) - (a.lastActive||0));
+
+  if (!sessions.length) {
+    list.innerHTML = `<div style="text-align:center;color:rgba(255,255,255,0.3);font-size:13px;padding:12px 0;">
+      No sessions yet — create one below 👇</div>`;
+    return;
+  }
+
+  list.innerHTML = sessions.map(sess => {
+    const m  = sessionMeta(sess);
+    const bg = sess.avatarBg || 'av-bg-1';
+    return `
+    <div style="display:flex;align-items:center;gap:0;">
+      <div class="sess-card" style="flex:1;" onclick="startResume('${sess.id}')">
+        <div class="sess-avatar ${bg}" style="color:#fff;">${sess.avatar || '🚀'}</div>
+        <div class="sess-info">
+          <div class="sess-name">${escHtml(sess.name)}</div>
+          <div class="sess-meta">Last active: ${fmtDate(sess.lastActive)}</div>
+        </div>
+        <div class="sess-stats">
+          <div class="ss-chip"><div class="ss-chip-n">${m.total}</div><div class="ss-chip-l">done</div></div>
+          <div class="ss-chip"><div class="ss-chip-n">${m.acc}</div><div class="ss-chip-l">acc</div></div>
+          <div class="ss-chip"><div class="ss-chip-n">${m.streak}🔥</div><div class="ss-chip-l">streak</div></div>
+        </div>
+        <div class="sess-arrow">›</div>
+      </div>
+      <button class="sess-del" onclick="confirmDelete('${sess.id}')" title="Delete session">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function confirmDelete(id) {
+  const sess = getSession(id);
+  if (!sess) return;
+  if (confirm(`Delete "${sess.name}"'s session? All progress will be lost.`)) {
+    deleteSession(id);
+    renderSessions();
+  }
+}
+
+/* ── RESUME EXISTING SESSION ── */
+function startResume(id) {
+  const sess = getSession(id);
+  if (!sess) return;
+  resumeTarget = id;
+
+  const m  = sessionMeta(sess);
+  const bg = sess.avatarBg || 'av-bg-1';
+
+  document.getElementById('resumeAvatar').textContent = sess.avatar || '🚀';
+  document.getElementById('resumeAvatar').className   = `sess-avatar ${bg}`;
+  document.getElementById('resumeName').textContent   = sess.name;
+  document.getElementById('resumeMeta').textContent   =
+    `${m.total} questions done · ${m.acc} accuracy · ${m.streak}🔥 best streak`;
+
+  document.getElementById('resumePw').value = '';
+  document.getElementById('resumeErr').classList.remove('show');
+  showView('viewResume');
+  setTimeout(() => document.getElementById('resumePw').focus(), 200);
+}
+
+function doResume() {
+  const pw  = document.getElementById('resumePw').value;
+  const inp = document.getElementById('resumePw');
+  const err = document.getElementById('resumeErr');
+
+  if (pw !== CORRECT_PW) {
+    inp.classList.add('error');
+    err.classList.add('show');
+    inp.value = '';
+    setTimeout(() => inp.classList.remove('error'), 400);
+    return;
+  }
+
+  // Update lastActive
+  const sess = getSession(resumeTarget);
+  if (sess) {
+    sess.lastActive = Date.now();
+    saveSession(sess);
+  }
+
+  // Write session id into sessionStorage (tab-scoped — each tab is independent)
+  sessionStorage.setItem('sdt_auth', '1');
+  sessionStorage.setItem('sdt_session_id', resumeTarget);
+  err.classList.remove('show');
+
+  setTimeout(() => window.location.replace('index.html'), 350);
+}
+
+/* ── NEW SESSION ── */
+function renderAvatarPicker() {
+  pickedAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+  document.getElementById('avatarPicker').innerHTML = AVATARS.map((av, i) =>
+    `<div class="av-opt ${av.bg} ${av === pickedAvatar ? 'picked' : ''}"
+       onclick="pickAvatar(${i})">${av.emoji}</div>`
+  ).join('');
+}
+
+function pickAvatar(i) {
+  pickedAvatar = AVATARS[i];
+  document.querySelectorAll('.av-opt').forEach((el, j) =>
+    el.classList.toggle('picked', i === j)
+  );
+}
+
+function doNewSession() {
+  const name   = document.getElementById('newName').value.trim();
+  const pw     = document.getElementById('newPw').value;
+  const nameEl = document.getElementById('newName');
+  const pwEl   = document.getElementById('newPw');
+  const nameErr = document.getElementById('nameErr');
+  const pwErr   = document.getElementById('newPwErr');
+  let valid = true;
+
+  nameErr.classList.remove('show'); pwErr.classList.remove('show');
+
+  if (!name || name.length > 24) {
+    nameEl.classList.add('error');
+    nameErr.classList.add('show');
+    setTimeout(() => nameEl.classList.remove('error'), 400);
+    valid = false;
+  }
+
+  if (pw !== CORRECT_PW) {
+    pwEl.classList.add('error');
+    pwErr.classList.add('show');
+    pwEl.value = '';
+    setTimeout(() => pwEl.classList.remove('error'), 400);
+    valid = false;
+  }
+
+  if (!valid) return;
+
+  // Create fresh session
+  const id = uid();
+  const sess = {
+    id, name,
+    avatar:   pickedAvatar.emoji,
+    avatarBg: pickedAvatar.bg,
+    created:  Date.now(),
+    lastActive: Date.now(),
+    state: emptyState()
+  };
+  saveSession(sess);
+  registerSessionId(id);
+
+  sessionStorage.setItem('sdt_auth', '1');
+  sessionStorage.setItem('sdt_session_id', id);
+
+  setTimeout(() => window.location.replace('index.html'), 350);
+}
+
+/* ── TOGGLE PASSWORD VISIBILITY ── */
+function toggleVis(inputId) {
+  const inp = document.getElementById(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+/* ── INIT ── */
+(function init() {
+  // If already authed in this tab, go straight to quiz
+  if (sessionStorage.getItem('sdt_auth') === '1' &&
+      sessionStorage.getItem('sdt_session_id')) {
     window.location.replace('index.html');
+    return;
   }
-
-  function doLogin() {
-    const val = document.getElementById('pwInput').value;
-    const btn = document.getElementById('loginBtn');
-    const err = document.getElementById('errMsg');
-    const inp = document.getElementById('pwInput');
-
-    if (val === 'HappyDTS') {
-      sessionStorage.setItem('sdt_auth', '1');
-      btn.textContent = 'Loading quiz…';
-      btn.classList.add('loading');
-      err.classList.remove('show');
-      setTimeout(() => { window.location.replace('index.html'); }, 400);
-    } else {
-      inp.classList.add('error');
-      err.classList.add('show');
-      inp.value = '';
-      setTimeout(() => inp.classList.remove('error'), 400);
-      inp.focus();
-    }
-  }
-
-  function toggleVis() {
-    const inp = document.getElementById('pwInput');
-    inp.type = inp.type === 'password' ? 'text' : 'password';
-  }
-
-  /* Auto-focus input on load */
-  window.addEventListener('load', () => {
-    setTimeout(() => document.getElementById('pwInput').focus(), 300);
-  });
+  renderSessions();
+})();
 </script>
 </body>
 </html>

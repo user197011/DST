@@ -1,8 +1,30 @@
-/* ─────────────────────────────────────────
+/* ─────────────────────────────────────────────────────
    Speed · Distance · Time Quiz — app.js
-   ───────────────────────────────────────── */
+   Multi-session: each session's state is stored under
+   sdt_session_{id}  →  { …, state: { total, correct, … } }
+   The active session id is in sessionStorage (tab-scoped),
+   so multiple browser tabs can run different sessions.
+───────────────────────────────────────────────────── */
 
-/* ── STATE ── */
+/* ── SESSION IDENTITY ── */
+const SESSION_PFX = 'sdt_session_';
+
+function getSessionId() {
+  return sessionStorage.getItem('sdt_session_id') || null;
+}
+
+function getSessionRecord() {
+  const id = getSessionId();
+  if (!id) return null;
+  try { return JSON.parse(localStorage.getItem(SESSION_PFX + id)); } catch { return null; }
+}
+
+function saveSessionRecord(record) {
+  if (!record) return;
+  localStorage.setItem(SESSION_PFX + record.id, JSON.stringify(record));
+}
+
+/* ── QUIZ STATE (global — persisted per session) ── */
 const CATS = {
   speed:      { label: 'Speed',      emoji: '🚗' },
   distance:   { label: 'Distance',   emoji: '📏' },
@@ -11,11 +33,15 @@ const CATS = {
   mixed:      { label: 'Mixed',      emoji: '🎲' }
 };
 
-let state = {
-  total: 0, correct: 0, bestStreak: 0,
-  cats: { speed:{d:0,c:0}, distance:{d:0,c:0}, time:{d:0,c:0}, conversion:{d:0,c:0} },
-  history: []
-};
+function emptyState() {
+  return {
+    total: 0, correct: 0, bestStreak: 0,
+    cats: { speed:{d:0,c:0}, distance:{d:0,c:0}, time:{d:0,c:0}, conversion:{d:0,c:0} },
+    history: []
+  };
+}
+
+let state = emptyState();
 
 let session = {
   mode: 'whole', cat: 'mixed', diff: 'easy', qty: 10,
@@ -30,6 +56,7 @@ let WHOLE = null, DECIMAL = null;
 
 /* ── NAVIGATION ── */
 function goHome() { show('homeScreen'); updateDash(); }
+
 function goReview() {
   show('reviewScreen');
   const el = document.getElementById('reviewAll');
@@ -43,7 +70,6 @@ function goReview() {
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  // Inject ref bars into screens that need them
   ['setupRefBar','quizRefBar','resultsRefBar','reviewRefBar'].forEach(barId => {
     const el = document.getElementById(barId);
     if (el && !el.dataset.filled) { el.innerHTML = refBarHTML(); el.dataset.filled = '1'; }
@@ -76,6 +102,20 @@ function setQty(n) {
   [10, 20, 50].forEach(x =>
     document.getElementById('qty-' + x).classList.toggle('active', x === n)
   );
+}
+
+/* ── SESSION HEADER (name + avatar) ── */
+function renderSessionHeader() {
+  const rec = getSessionRecord();
+  if (!rec) return;
+  // Inject into hero topbar
+  const nameEl = document.getElementById('sessionName');
+  const avEl   = document.getElementById('sessionAvatar');
+  if (nameEl) nameEl.textContent = rec.name;
+  if (avEl)   {
+    avEl.textContent  = rec.avatar || '🚀';
+    avEl.className    = 'sess-av-badge ' + (rec.avatarBg || 'av-bg-1');
+  }
 }
 
 /* ── SHARED REF BAR HTML ── */
@@ -137,9 +177,7 @@ function interleave(...arrays) {
   const result = [];
   const maxLen = Math.max(...arrays.map(a => a.length));
   for (let i = 0; i < maxLen; i++) {
-    for (const arr of arrays) {
-      if (i < arr.length) result.push(arr[i]);
-    }
+    for (const arr of arrays) { if (i < arr.length) result.push(arr[i]); }
   }
   return result;
 }
@@ -174,116 +212,106 @@ function buildWhole() {
 
   const SP = [[60,2],[80,3],[100,4],[120,3],[90,2],[70,5],[110,4],[50,3],[40,6],[150,2],[200,3],[160,4],[130,5],[75,4],[45,2],[55,3],[85,4],[95,5],[105,6],[115,4],[125,2],[135,3],[145,4],[155,5],[165,6],[175,4],[185,2],[195,3],[205,4],[215,5],[225,6],[235,4],[245,2],[255,3],[265,4],[30,7],[35,4],[25,8],[20,5],[15,6],[180,2],[170,3],[140,4],[210,5],[220,3],[230,4],[240,5],[250,2],[260,3],[270,4]];
   for (let i = 0; i < 250; i++) {
-    const v = V[i % V.length], p = SP[i % SP.length], s = p[0], t = p[1], d = s * t;
-    const fk = [s-10, s+10, s+20].filter(x => x > 0 && x !== s);
-    while (fk.length < 3) fk.push(s + fk.length * 5 + 1);
-    const { opts, ans } = shOpts(s, sh([...fk]));
-    spd.push({ cat:'speed', diff: s>150?'hard':s>80?'medium':'easy',
+    const v=V[i%V.length],p=SP[i%SP.length],s=p[0],t=p[1],d=s*t;
+    const fk=[s-10,s+10,s+20].filter(x=>x>0&&x!==s);
+    while(fk.length<3)fk.push(s+fk.length*5+1);
+    const{opts,ans}=shOpts(s,sh([...fk]));
+    spd.push({cat:'speed',diff:s>150?'hard':s>80?'medium':'easy',
       q:`A ${v[0]} travels ${d} ${v[1]} in ${t} hour${t>1?'s':''}. What is its average speed?`,
-      opts: opts.map(o => o + ' ' + v[2]), ans,
-      hint: `Speed = ${d} ÷ ${t} = ${s} ${v[2]}` });
+      opts:opts.map(o=>o+' '+v[2]),ans,hint:`Speed = ${d} ÷ ${t} = ${s} ${v[2]}`});
   }
 
-  const DP = [[60,3],[80,2],[100,4],[120,3],[90,5],[70,6],[110,3],[50,4],[40,5],[150,2],[200,3],[160,2],[130,4],[75,4],[45,2],[55,3],[85,4],[95,3],[105,2],[115,4],[125,2],[135,3],[145,2],[155,4],[165,3],[175,2],[185,4],[195,3],[205,2],[215,4],[30,6],[35,4],[25,4],[20,5],[15,4],[180,3],[170,4],[140,5],[210,3],[220,2],[230,3],[240,2],[250,4],[260,3],[270,2],[280,3],[290,2],[300,3],[50,6],[60,4]];
-  for (let i = 0; i < 250; i++) {
-    const v = V[i % V.length], p = DP[i % DP.length], s = p[0], t = p[1], d = s * t;
-    const fk = [d-40, d+40, d+90].filter(x => x > 0 && x !== d);
-    while (fk.length < 3) fk.push(d + fk.length * 15 + 5);
-    const { opts, ans } = shOpts(d, sh([...fk]));
-    dst.push({ cat:'distance', diff: d>500?'hard':d>200?'medium':'easy',
+  const DP=[[60,3],[80,2],[100,4],[120,3],[90,5],[70,6],[110,3],[50,4],[40,5],[150,2],[200,3],[160,2],[130,4],[75,4],[45,2],[55,3],[85,4],[95,3],[105,2],[115,4],[125,2],[135,3],[145,2],[155,4],[165,3],[175,2],[185,4],[195,3],[205,2],[215,4],[30,6],[35,4],[25,4],[20,5],[15,4],[180,3],[170,4],[140,5],[210,3],[220,2],[230,3],[240,2],[250,4],[260,3],[270,2],[280,3],[290,2],[300,3],[50,6],[60,4]];
+  for(let i=0;i<250;i++){
+    const v=V[i%V.length],p=DP[i%DP.length],s=p[0],t=p[1],d=s*t;
+    const fk=[d-40,d+40,d+90].filter(x=>x>0&&x!==d);
+    while(fk.length<3)fk.push(d+fk.length*15+5);
+    const{opts,ans}=shOpts(d,sh([...fk]));
+    dst.push({cat:'distance',diff:d>500?'hard':d>200?'medium':'easy',
       q:`A ${v[0]} travels at ${s} ${v[2]} for ${t} hour${t>1?'s':''}. How far does it travel?`,
-      opts: opts.map(o => o + ' ' + v[1]), ans,
-      hint: `Distance = ${s} × ${t} = ${d} ${v[1]}` });
+      opts:opts.map(o=>o+' '+v[1]),ans,hint:`Distance = ${s} × ${t} = ${d} ${v[1]}`});
   }
 
-  const TP = [[60,120],[80,160],[100,300],[120,240],[90,270],[70,350],[110,330],[50,200],[40,160],[150,300],[200,600],[160,320],[130,390],[75,225],[45,135],[55,165],[85,255],[95,285],[105,315],[115,460],[125,375],[135,405],[145,290],[155,310],[165,330],[175,350],[185,370],[195,390],[30,150],[35,140],[25,100],[20,100],[15,60],[180,360],[170,340],[140,280],[210,420],[220,440],[230,460],[240,480],[250,500],[260,520],[270,540],[280,560],[290,580],[300,600],[320,640],[340,680],[360,720],[400,800]];
-  for (let i = 0; i < 250; i++) {
-    const v = V[i % V.length], p = TP[i % TP.length], s = p[0], d = p[1], t = d / s;
-    if (!Number.isInteger(t) || t < 1) { if (tim.length) tim.push({...tim[tim.length-1]}); continue; }
-    const fk = [t-1, t+1, t+2].filter(x => x > 0 && x !== t);
-    while (fk.length < 3) fk.push(t + fk.length + 1);
-    const { opts, ans } = shOpts(t, sh([...fk]));
-    tim.push({ cat:'time', diff: t>5?'hard':t>2?'medium':'easy',
+  const TP=[[60,120],[80,160],[100,300],[120,240],[90,270],[70,350],[110,330],[50,200],[40,160],[150,300],[200,600],[160,320],[130,390],[75,225],[45,135],[55,165],[85,255],[95,285],[105,315],[115,460],[125,375],[135,405],[145,290],[155,310],[165,330],[175,350],[185,370],[195,390],[30,150],[35,140],[25,100],[20,100],[15,60],[180,360],[170,340],[140,280],[210,420],[220,440],[230,460],[240,480],[250,500],[260,520],[270,540],[280,560],[290,580],[300,600],[320,640],[340,680],[360,720],[400,800]];
+  for(let i=0;i<250;i++){
+    const v=V[i%V.length],p=TP[i%TP.length],s=p[0],d=p[1],t=d/s;
+    if(!Number.isInteger(t)||t<1){if(tim.length)tim.push({...tim[tim.length-1]});continue;}
+    const fk=[t-1,t+1,t+2].filter(x=>x>0&&x!==t);
+    while(fk.length<3)fk.push(t+fk.length+1);
+    const{opts,ans}=shOpts(t,sh([...fk]));
+    tim.push({cat:'time',diff:t>5?'hard':t>2?'medium':'easy',
       q:`A ${v[0]} travels ${d} ${v[1]} at ${s} ${v[2]}. How long does the journey take?`,
-      opts: opts.map(o => o + ' hour' + (o > 1 ? 's' : '')), ans,
-      hint: `Time = ${d} ÷ ${s} = ${t} hour${t>1?'s':''}` });
+      opts:opts.map(o=>o+' hour'+(o>1?'s':'')),ans,hint:`Time = ${d} ÷ ${s} = ${t} hour${t>1?'s':''}`});
   }
-  while (tim.length < 250) tim.push({...tim[tim.length-1]});
+  while(tim.length<250)tim.push({...tim[tim.length-1]});
 
-  const CW = [
-    { q:'Convert {v} km/h to m/s.',            calc: v => Math.round(v/3.6*10)/10, u:'m/s',  h:'÷ 3.6', vs:[36,72,90,108,144,180,216,252,288,324,360,396,432,468,504,540,576,612,648,684,54,126,162,198,234,270,306,342,378,414,450,486,522,558,594,630,666,702,738,774,810,846,882,918,954,18,27,45,63,81] },
-    { q:'Convert {v} m/s to km/h.',             calc: v => v * 3.6,                 u:'km/h', h:'× 3.6', vs:[5,10,15,20,25,30,35,40,45,50,2,4,6,8,12,14,16,18,22,24,26,28,32,34,36,38,42,44,46,48,52,54,56,58,62,64,66,68,72,74,76,78,82,84,86,88,92,94,96,98] },
-    { q:'Convert {v} mph to km/h (1 mile = 1.6 km).', calc: v => v * 1.6,          u:'km/h', h:'× 1.6', vs:[10,20,30,40,50,60,70,80,90,100,15,25,35,45,55,65,75,85,95,5,12,18,22,28,32,38,42,48,52,58,62,68,72,78,82,88,92,98,102,108,112,118,122,128,132,138,142,148,152,158] },
-    { q:'Convert {v} km/h to mph (1 mile = 1.6 km).', calc: v => Math.round(v/1.6*10)/10, u:'mph', h:'÷ 1.6', vs:[16,32,48,64,80,96,112,128,144,160,24,40,56,72,88,104,120,136,152,168,176,192,208,224,240,256,272,288,304,320,336,352,368,384,400,8,24,40,56,72,88,104,120,136,152] }
+  const CW=[
+    {q:'Convert {v} km/h to m/s.',calc:v=>Math.round(v/3.6*10)/10,u:'m/s',h:'÷ 3.6',vs:[36,72,90,108,144,180,216,252,288,324,360,396,432,468,504,540,576,612,648,684,54,126,162,198,234,270,306,342,378,414,450,486,522,558,594,630,666,702,738,774,810,846,882,918,954,18,27,45,63,81]},
+    {q:'Convert {v} m/s to km/h.',calc:v=>v*3.6,u:'km/h',h:'× 3.6',vs:[5,10,15,20,25,30,35,40,45,50,2,4,6,8,12,14,16,18,22,24,26,28,32,34,36,38,42,44,46,48,52,54,56,58,62,64,66,68,72,74,76,78,82,84,86,88,92,94,96,98]},
+    {q:'Convert {v} mph to km/h (1 mile = 1.6 km).',calc:v=>v*1.6,u:'km/h',h:'× 1.6',vs:[10,20,30,40,50,60,70,80,90,100,15,25,35,45,55,65,75,85,95,5,12,18,22,28,32,38,42,48,52,58,62,68,72,78,82,88,92,98,102,108,112,118,122,128,132,138,142,148,152,158]},
+    {q:'Convert {v} km/h to mph (1 mile = 1.6 km).',calc:v=>Math.round(v/1.6*10)/10,u:'mph',h:'÷ 1.6',vs:[16,32,48,64,80,96,112,128,144,160,24,40,56,72,88,104,120,136,152,168,176,192,208,224,240,256,272,288,304,320,336,352,368,384,400,8,24,40,56,72,88,104,120,136,152]}
   ];
-  for (let i = 0; i < 250; i++) {
-    const T = CW[i % CW.length], val = T.vs[Math.floor(i / CW.length) % T.vs.length];
-    const cor = parseFloat(T.calc(val).toFixed(2));
-    const fk = [parseFloat((cor*0.75).toFixed(2)), parseFloat((cor*0.85).toFixed(2)), parseFloat((cor*1.25).toFixed(2))];
-    const { opts, ans } = shOpts(cor, sh([...fk]));
-    con.push({ cat:'conversion', diff: val>100?'hard':val>50?'medium':'easy',
-      q: T.q.replace('{v}', val), opts: opts.map(o => o + ' ' + T.u), ans,
-      hint: `${val} ${T.h} = ${cor} ${T.u}` });
+  for(let i=0;i<250;i++){
+    const T=CW[i%CW.length],val=T.vs[Math.floor(i/CW.length)%T.vs.length];
+    const cor=parseFloat(T.calc(val).toFixed(2));
+    const fk=[parseFloat((cor*0.75).toFixed(2)),parseFloat((cor*0.85).toFixed(2)),parseFloat((cor*1.25).toFixed(2))];
+    const{opts,ans}=shOpts(cor,sh([...fk]));
+    con.push({cat:'conversion',diff:val>100?'hard':val>50?'medium':'easy',
+      q:T.q.replace('{v}',val),opts:opts.map(o=>o+' '+T.u),ans,hint:`${val} ${T.h} = ${cor} ${T.u}`});
   }
-
-  return { speed: sh(spd), distance: sh(dst), time: sh(tim), conversion: sh(con) };
+  return{speed:sh(spd),distance:sh(dst),time:sh(tim),conversion:sh(con)};
 }
 
 /* ── BUILD DECIMAL BANK ── */
 function buildDecimal() {
-  const spd = [], dst = [], tim = [], con = [];
+  const spd=[],dst=[],tim=[],con=[];
 
-  const SD = [[75,1.5],[90,2.5],[120,1.5],[60,2.5],[100,3.5],[80,4.5],[110,1.5],[50,2.5],[45,1.5],[130,2.5],[70,4.5],[140,3.5],[150,1.5],[160,2.5],[55,1.5],[85,2.5],[95,1.5],[105,3.5],[115,2.5],[125,1.5],[135,2.5],[145,1.5],[155,2.5],[165,1.5],[175,2.5],[185,1.5],[195,2.5],[205,1.5],[215,2.5],[225,1.5],[235,2.5],[245,1.5],[255,2.5],[265,1.5],[275,2.5],[65,1.5],[35,2.5],[25,1.5],[20,2.5],[15,4.5],[180,1.5],[170,2.5],[210,1.5],[220,2.5],[230,1.5],[240,2.5],[250,1.5],[260,2.5],[270,1.5],[280,2.5]];
-  for (let i = 0; i < 250; i++) {
-    const v = V[i % V.length], p = SD[i % SD.length], s = p[0], t = p[1], d = s * t;
-    const fk = [s-10, s+10, s+20].filter(x => x > 0 && x !== s);
-    while (fk.length < 3) fk.push(s + fk.length * 5 + 1);
-    const { opts, ans } = shOpts(s, sh([...fk]));
-    spd.push({ cat:'speed', diff: s>150?'hard':s>80?'medium':'easy',
+  const SD=[[75,1.5],[90,2.5],[120,1.5],[60,2.5],[100,3.5],[80,4.5],[110,1.5],[50,2.5],[45,1.5],[130,2.5],[70,4.5],[140,3.5],[150,1.5],[160,2.5],[55,1.5],[85,2.5],[95,1.5],[105,3.5],[115,2.5],[125,1.5],[135,2.5],[145,1.5],[155,2.5],[165,1.5],[175,2.5],[185,1.5],[195,2.5],[205,1.5],[215,2.5],[225,1.5],[235,2.5],[245,1.5],[255,2.5],[265,1.5],[275,2.5],[65,1.5],[35,2.5],[25,1.5],[20,2.5],[15,4.5],[180,1.5],[170,2.5],[210,1.5],[220,2.5],[230,1.5],[240,2.5],[250,1.5],[260,2.5],[270,1.5],[280,2.5]];
+  for(let i=0;i<250;i++){
+    const v=V[i%V.length],p=SD[i%SD.length],s=p[0],t=p[1],d=s*t;
+    const fk=[s-10,s+10,s+20].filter(x=>x>0&&x!==s);
+    while(fk.length<3)fk.push(s+fk.length*5+1);
+    const{opts,ans}=shOpts(s,sh([...fk]));
+    spd.push({cat:'speed',diff:s>150?'hard':s>80?'medium':'easy',
       q:`A ${v[0]} travels ${d} ${v[1]} in ${t} hours. What is its average speed?`,
-      opts: opts.map(o => o + ' ' + v[2]), ans,
-      hint: `Speed = ${d} ÷ ${t} = ${s} ${v[2]}` });
+      opts:opts.map(o=>o+' '+v[2]),ans,hint:`Speed = ${d} ÷ ${t} = ${s} ${v[2]}`});
   }
 
-  const DD = [[60,1.5],[80,2.5],[100,1.5],[120,2.5],[90,3.5],[70,4.5],[110,1.5],[50,2.5],[40,1.5],[150,2.5],[200,1.5],[160,2.5],[130,1.5],[75,2.5],[45,4.5],[55,1.5],[85,2.5],[95,3.5],[105,1.5],[115,2.5],[125,3.5],[135,1.5],[145,2.5],[155,1.5],[165,2.5],[175,1.5],[185,2.5],[195,1.5],[205,2.5],[215,3.5],[30,4.5],[35,2.5],[25,1.5],[20,2.5],[15,4.5],[180,1.5],[170,2.5],[140,1.5],[210,2.5],[220,1.5],[230,2.5],[240,1.5],[250,2.5],[260,1.5],[270,2.5],[280,1.5],[290,2.5],[300,1.5],[50,4.5],[60,2.5]];
-  for (let i = 0; i < 250; i++) {
-    const v = V[i % V.length], p = DD[i % DD.length], s = p[0], t = p[1], d = parseFloat((s*t).toFixed(1));
-    const fk = [parseFloat((d*0.8).toFixed(1)), parseFloat((d*1.2).toFixed(1)), parseFloat((d*1.35).toFixed(1))];
-    const { opts, ans } = shOpts(d, sh([...fk]));
-    dst.push({ cat:'distance', diff: d>500?'hard':d>200?'medium':'easy',
+  const DD=[[60,1.5],[80,2.5],[100,1.5],[120,2.5],[90,3.5],[70,4.5],[110,1.5],[50,2.5],[40,1.5],[150,2.5],[200,1.5],[160,2.5],[130,1.5],[75,2.5],[45,4.5],[55,1.5],[85,2.5],[95,3.5],[105,1.5],[115,2.5],[125,3.5],[135,1.5],[145,2.5],[155,1.5],[165,2.5],[175,1.5],[185,2.5],[195,1.5],[205,2.5],[215,3.5],[30,4.5],[35,2.5],[25,1.5],[20,2.5],[15,4.5],[180,1.5],[170,2.5],[140,1.5],[210,2.5],[220,1.5],[230,2.5],[240,1.5],[250,2.5],[260,1.5],[270,2.5],[280,1.5],[290,2.5],[300,1.5],[50,4.5],[60,2.5]];
+  for(let i=0;i<250;i++){
+    const v=V[i%V.length],p=DD[i%DD.length],s=p[0],t=p[1],d=parseFloat((s*t).toFixed(1));
+    const fk=[parseFloat((d*0.8).toFixed(1)),parseFloat((d*1.2).toFixed(1)),parseFloat((d*1.35).toFixed(1))];
+    const{opts,ans}=shOpts(d,sh([...fk]));
+    dst.push({cat:'distance',diff:d>500?'hard':d>200?'medium':'easy',
       q:`A ${v[0]} travels at ${s} ${v[2]} for ${t} hours. How far does it travel?`,
-      opts: opts.map(o => o + ' ' + v[1]), ans,
-      hint: `Distance = ${s} × ${t} = ${d} ${v[1]}` });
+      opts:opts.map(o=>o+' '+v[1]),ans,hint:`Distance = ${s} × ${t} = ${d} ${v[1]}`});
   }
 
-  const TD = [[60,90],[80,120],[100,150],[120,180],[90,135],[70,105],[110,165],[50,75],[40,60],[150,225],[200,300],[160,240],[130,195],[75,112.5],[45,67.5],[55,82.5],[85,127.5],[95,142.5],[105,157.5],[115,172.5],[125,187.5],[135,202.5],[145,217.5],[155,232.5],[165,247.5],[175,262.5],[185,277.5],[195,292.5],[30,45],[35,52.5],[25,37.5],[20,30],[15,22.5],[180,270],[170,255],[140,210],[210,315],[220,330],[230,345],[240,360],[250,375],[260,390],[270,405],[280,420],[290,435],[300,450],[320,480],[340,510],[360,540],[400,600]];
-  for (let i = 0; i < 250; i++) {
-    const v = V[i % V.length], p = TD[i % TD.length], s = p[0], d = p[1], t = parseFloat((d/s).toFixed(2));
-    const fk = [parseFloat((t*0.75).toFixed(2)), parseFloat((t*1.5).toFixed(2)), parseFloat((t*2).toFixed(2))];
-    const { opts, ans } = shOpts(t, sh([...fk]));
-    tim.push({ cat:'time', diff: t>5?'hard':t>2?'medium':'easy',
+  const TD=[[60,90],[80,120],[100,150],[120,180],[90,135],[70,105],[110,165],[50,75],[40,60],[150,225],[200,300],[160,240],[130,195],[75,112.5],[45,67.5],[55,82.5],[85,127.5],[95,142.5],[105,157.5],[115,172.5],[125,187.5],[135,202.5],[145,217.5],[155,232.5],[165,247.5],[175,262.5],[185,277.5],[195,292.5],[30,45],[35,52.5],[25,37.5],[20,30],[15,22.5],[180,270],[170,255],[140,210],[210,315],[220,330],[230,345],[240,360],[250,375],[260,390],[270,405],[280,420],[290,435],[300,450],[320,480],[340,510],[360,540],[400,600]];
+  for(let i=0;i<250;i++){
+    const v=V[i%V.length],p=TD[i%TD.length],s=p[0],d=p[1],t=parseFloat((d/s).toFixed(2));
+    const fk=[parseFloat((t*0.75).toFixed(2)),parseFloat((t*1.5).toFixed(2)),parseFloat((t*2).toFixed(2))];
+    const{opts,ans}=shOpts(t,sh([...fk]));
+    tim.push({cat:'time',diff:t>5?'hard':t>2?'medium':'easy',
       q:`A ${v[0]} travels ${d} ${v[1]} at ${s} ${v[2]}. How long does the journey take?`,
-      opts: opts.map(o => o + ' hours'), ans,
-      hint: `Time = ${d} ÷ ${s} = ${t} hours` });
+      opts:opts.map(o=>o+' hours'),ans,hint:`Time = ${d} ÷ ${s} = ${t} hours`});
   }
 
-  const CD = [
-    { q:'Convert {v} km/h to m/s.',            calc: v => parseFloat((v/3.6).toFixed(2)),  u:'m/s',  h:'÷ 3.6', vs:[45,63,81,99,117,135,153,171,189,207,225,243,261,279,297,315,333,351,369,387,405,423,441,459,477,495,513,531,549,567,585,603,621,639,657,675,693,711,729,747,765,783,801,819,837,855,873,891,909,927] },
-    { q:'Convert {v} m/s to km/h.',             calc: v => parseFloat((v*3.6).toFixed(1)), u:'km/h', h:'× 3.6', vs:[1.5,2.5,3.5,4.5,6.5,7.5,8.5,9.5,11.5,12.5,13.5,14.5,16.5,17.5,18.5,19.5,21.5,22.5,23.5,24.5,26.5,27.5,28.5,29.5,31.5,32.5,33.5,34.5,36.5,37.5,38.5,39.5,41.5,42.5,43.5,44.5,46.5,47.5,48.5,49.5,51.5,52.5,53.5,54.5,56.5,57.5,58.5,59.5,61.5,62.5] },
-    { q:'Convert {v} mph to km/h (1 mile = 1.6 km).', calc: v => parseFloat((v*1.6).toFixed(1)), u:'km/h', h:'× 1.6', vs:[12.5,17.5,22.5,27.5,32.5,37.5,42.5,47.5,52.5,57.5,62.5,67.5,72.5,77.5,82.5,87.5,92.5,97.5,102.5,107.5,112.5,117.5,122.5,127.5,132.5,137.5,142.5,147.5,152.5,157.5,162.5,167.5,172.5,177.5,182.5,187.5,192.5,197.5,202.5,207.5,212.5,217.5,222.5,227.5,232.5,237.5,242.5,247.5,252.5,257.5] },
-    { q:'A vehicle travels {v} km in 90 minutes. What is its speed in km/h?', calc: v => parseFloat((v/1.5).toFixed(1)), u:'km/h', h:'÷ 1.5 (90 min = 1.5 hrs)', vs:[60,75,90,105,120,135,150,165,180,195,210,225,240,255,270,285,300,315,330,345,360,375,390,405,420,435,450,465,480,495,510,525,540,555,570,585,600,615,630,645,660,675,690,705,720,735,750,765,780,795] }
+  const CD=[
+    {q:'Convert {v} km/h to m/s.',calc:v=>parseFloat((v/3.6).toFixed(2)),u:'m/s',h:'÷ 3.6',vs:[45,63,81,99,117,135,153,171,189,207,225,243,261,279,297,315,333,351,369,387,405,423,441,459,477,495,513,531,549,567,585,603,621,639,657,675,693,711,729,747,765,783,801,819,837,855,873,891,909,927]},
+    {q:'Convert {v} m/s to km/h.',calc:v=>parseFloat((v*3.6).toFixed(1)),u:'km/h',h:'× 3.6',vs:[1.5,2.5,3.5,4.5,6.5,7.5,8.5,9.5,11.5,12.5,13.5,14.5,16.5,17.5,18.5,19.5,21.5,22.5,23.5,24.5,26.5,27.5,28.5,29.5,31.5,32.5,33.5,34.5,36.5,37.5,38.5,39.5,41.5,42.5,43.5,44.5,46.5,47.5,48.5,49.5,51.5,52.5,53.5,54.5,56.5,57.5,58.5,59.5,61.5,62.5]},
+    {q:'Convert {v} mph to km/h (1 mile = 1.6 km).',calc:v=>parseFloat((v*1.6).toFixed(1)),u:'km/h',h:'× 1.6',vs:[12.5,17.5,22.5,27.5,32.5,37.5,42.5,47.5,52.5,57.5,62.5,67.5,72.5,77.5,82.5,87.5,92.5,97.5,102.5,107.5,112.5,117.5,122.5,127.5,132.5,137.5,142.5,147.5,152.5,157.5,162.5,167.5,172.5,177.5,182.5,187.5,192.5,197.5,202.5,207.5,212.5,217.5,222.5,227.5,232.5,237.5,242.5,247.5,252.5,257.5]},
+    {q:'A vehicle travels {v} km in 90 minutes. What is its speed in km/h?',calc:v=>parseFloat((v/1.5).toFixed(1)),u:'km/h',h:'÷ 1.5 (90 min = 1.5 hrs)',vs:[60,75,90,105,120,135,150,165,180,195,210,225,240,255,270,285,300,315,330,345,360,375,390,405,420,435,450,465,480,495,510,525,540,555,570,585,600,615,630,645,660,675,690,705,720,735,750,765,780,795]}
   ];
-  for (let i = 0; i < 250; i++) {
-    const T = CD[i % CD.length], val = T.vs[Math.floor(i / CD.length) % T.vs.length];
-    const cor = T.calc(val);
-    const fk = [parseFloat((cor*0.75).toFixed(2)), parseFloat((cor*0.85).toFixed(2)), parseFloat((cor*1.25).toFixed(2))];
-    const { opts, ans } = shOpts(cor, sh([...fk]));
-    con.push({ cat:'conversion', diff: val>100?'hard':val>50?'medium':'easy',
-      q: T.q.replace('{v}', val), opts: opts.map(o => o + ' ' + T.u), ans,
-      hint: `${val} ${T.h} = ${cor} ${T.u}` });
+  for(let i=0;i<250;i++){
+    const T=CD[i%CD.length],val=T.vs[Math.floor(i/CD.length)%T.vs.length];
+    const cor=T.calc(val);
+    const fk=[parseFloat((cor*0.75).toFixed(2)),parseFloat((cor*0.85).toFixed(2)),parseFloat((cor*1.25).toFixed(2))];
+    const{opts,ans}=shOpts(cor,sh([...fk]));
+    con.push({cat:'conversion',diff:val>100?'hard':val>50?'medium':'easy',
+      q:T.q.replace('{v}',val),opts:opts.map(o=>o+' '+T.u),ans,hint:`${val} ${T.h} = ${cor} ${T.u}`});
   }
-
-  return { speed: sh(spd), distance: sh(dst), time: sh(tim), conversion: sh(con) };
+  return{speed:sh(spd),distance:sh(dst),time:sh(tim),conversion:sh(con)};
 }
 
 function ensureBanks() {
@@ -449,6 +477,15 @@ function ri(a) {
 
 /* ── DASHBOARD ── */
 function updateDash() {
+  // Show session user name in header
+  const rec = getSessionRecord();
+  const nameEl = document.getElementById('sessionName');
+  const avEl   = document.getElementById('sessionAvatar');
+  if (rec) {
+    if (nameEl) nameEl.textContent = rec.name;
+    if (avEl)   { avEl.textContent = rec.avatar || '🚀'; avEl.className = 'sess-av-badge ' + (rec.avatarBg || 'av-bg-1'); }
+  }
+
   document.getElementById('hTotal').textContent   = state.total;
   document.getElementById('hCorrect').textContent = state.correct;
   document.getElementById('hAcc').textContent     = state.total > 0 ? Math.round(state.correct / state.total * 100) + '%' : '—';
@@ -461,34 +498,37 @@ function updateDash() {
 }
 
 function resetAll() {
-  state = { total:0, correct:0, bestStreak:0,
-    cats: { speed:{d:0,c:0}, distance:{d:0,c:0}, time:{d:0,c:0}, conversion:{d:0,c:0} },
-    history: [] };
+  state = emptyState();
   saveState();
   updateDash();
 }
 
-/* ── PERSISTENCE (localStorage) ── */
+/* ── PERSISTENCE — per session ── */
 function saveState() {
-  try { localStorage.setItem('sdt_state', JSON.stringify(state)); } catch(e) {}
+  const rec = getSessionRecord();
+  if (!rec) return;
+  rec.state = state;
+  rec.lastActive = Date.now();
+  saveSessionRecord(rec);
 }
 
 function loadState() {
-  try {
-    const saved = localStorage.getItem('sdt_state');
-    if (saved) state = { ...state, ...JSON.parse(saved) };
-  } catch(e) {}
+  const rec = getSessionRecord();
+  if (rec && rec.state) {
+    state = { ...emptyState(), ...rec.state };
+  }
+}
+
+/* ── AUTH & LOGOUT ── */
+function doLogout() {
+  if (confirm('Sign out and return to the login page?')) {
+    sessionStorage.removeItem('sdt_auth');
+    sessionStorage.removeItem('sdt_session_id');
+    window.location.replace('login.html');
+  }
 }
 
 /* ── INIT ── */
 loadState();
 setCat('mixed');
 updateDash();
-
-/* ── AUTH ── */
-function doLogout() {
-  if (confirm('Sign out and return to the login page?')) {
-    sessionStorage.removeItem('sdt_auth');
-    window.location.replace('login.html');
-  }
-}
