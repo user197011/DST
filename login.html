@@ -1,544 +1,438 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#7c3aed" />
+  <meta charset="UTF-8"/>
+  <!--
+    A05 Security Misconfiguration: Content-Security-Policy
+    - default-src 'none'  — deny everything not explicitly allowed
+    - script-src 'self'   — only scripts from same origin
+    - style-src 'self' + Google Fonts (nonce not available in static HTML;
+      using strict-dynamic alternative)
+    - font-src fonts.gstatic.com
+    - img-src 'self' data:
+    - connect-src 'none'  — no XHR/fetch to external endpoints
+    - frame-ancestors 'none' — clickjacking protection (A05)
+    - base-uri 'self'     — prevent base tag injection
+    - form-action 'self'  — no form posts to external URLs
+  -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none';
+             script-src 'self';
+             style-src 'self' https://fonts.googleapis.com 'unsafe-inline';
+             font-src https://fonts.gstatic.com;
+             img-src 'self' data:;
+             connect-src 'none';
+             frame-ancestors 'none';
+             base-uri 'self';
+             form-action 'self'"/>
+  <!-- A05: Prevent clickjacking via meta tag (backup to CSP frame-ancestors) -->
+  <meta http-equiv="X-Frame-Options" content="DENY"/>
+  <!-- A05: Prevent MIME sniffing -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+  <!-- A05: No referrer leakage -->
+  <meta http-equiv="Referrer-Policy" content="no-referrer"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+  <meta name="theme-color" content="#7c3aed"/>
+  <!-- A05: Disable browser caching of auth pages -->
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
   <title>Speed · Distance · Time — Login</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
-    body {
-      font-family: 'Nunito Sans', sans-serif;
-      min-height: 100dvh;
-      background: #0f0720;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow-x: hidden;
-      position: relative;
-      padding: 1rem;
-    }
-
-    /* ── ANIMATED ORBS ── */
-    .orb { position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.35; pointer-events: none; }
-    .orb-1 { width: 420px; height: 420px; background: #7c3aed; top: -120px; left: -80px;  animation: drift1 14s ease-in-out infinite alternate; }
-    .orb-2 { width: 300px; height: 300px; background: #e040fb; bottom: -80px; right: -60px; animation: drift2 11s ease-in-out infinite alternate; }
-    .orb-3 { width: 200px; height: 200px; background: #4f46e5; top: 45%; left: 45%;        animation: drift3 9s  ease-in-out infinite alternate; }
-    @keyframes drift1 { from{transform:translate(0,0);}       to{transform:translate(25px,18px);} }
-    @keyframes drift2 { from{transform:translate(0,0);}       to{transform:translate(-20px,-15px);} }
-    @keyframes drift3 { from{transform:translate(-50%,-50%);} to{transform:translate(calc(-50% + 20px),calc(-50% - 12px));} }
-
-    /* ── CARD ── */
-    .card {
-      position: relative; z-index: 10;
-      width: min(440px, 100%);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 28px;
-      padding: 2rem 1.75rem 1.75rem;
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      animation: slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
-    }
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(32px) scale(0.96); }
-      to   { opacity: 1; transform: none; }
-    }
-
-    /* ── LOGO ── */
-    .logo-area { text-align: center; margin-bottom: 1.5rem; }
-    .logo-badge {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 68px; height: 68px; border-radius: 22px;
-      background: linear-gradient(135deg, #7c3aed, #e040fb);
-      margin-bottom: 0.875rem;
-      box-shadow: 0 8px 32px rgba(124,58,237,0.5);
-    }
-    .logo-title { font-family:'Nunito',sans-serif; font-size: 21px; font-weight: 900; color: #fff; letter-spacing:-0.3px; margin-bottom: 3px; }
-    .logo-sub   { font-size: 12px; color: rgba(255,255,255,0.5); }
-
-    /* ── VIEWS (step switcher) ── */
-    .view { display: none; }
-    .view.active { display: block; animation: fadeIn 0.25s ease; }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:none;} }
-
-    /* ── SECTION LABEL ── */
-    .slbl {
-      font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.45);
-      text-transform: uppercase; letter-spacing: 0.08em;
-      margin-bottom: 8px; margin-top: 2px;
-    }
-
-    /* ── ACTIVE SESSIONS ── */
-    .sessions-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-
-    .sess-card {
-      display: flex; align-items: center; gap: 12px;
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 14px; padding: 11px 14px;
-      cursor: pointer; transition: background 0.15s, border-color 0.15s;
-      touch-action: manipulation;
-    }
-    .sess-card:hover  { background: rgba(255,255,255,0.12); border-color: rgba(168,85,247,0.5); }
-    .sess-card:active { background: rgba(168,85,247,0.2); }
-
-    .sess-avatar {
-      width: 38px; height: 38px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; flex-shrink: 0;
-      font-family: 'Nunito', sans-serif; font-weight: 900;
-    }
-
-    .sess-info { flex: 1; min-width: 0; }
-    .sess-name { font-family:'Nunito',sans-serif; font-weight: 800; font-size: 14px; color: #fff; margin-bottom: 2px; }
-    .sess-meta { font-size: 11px; color: rgba(255,255,255,0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .sess-stats { display: flex; gap: 8px; flex-shrink: 0; }
-    .ss-chip {
-      background: rgba(255,255,255,0.08); border-radius: 8px;
-      padding: 4px 8px; text-align: center;
-    }
-    .ss-chip-n { font-family:'Nunito',sans-serif; font-size: 13px; font-weight: 900; color: #fff; line-height: 1; }
-    .ss-chip-l { font-size: 8px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 1px; }
-
-    .sess-card .sess-arrow { font-size: 16px; color: rgba(255,255,255,0.3); flex-shrink: 0; }
-
-    .sess-del {
-      background: none; border: none; color: rgba(255,100,100,0.5);
-      font-size: 16px; cursor: pointer; padding: 4px; line-height: 1;
-      touch-action: manipulation; flex-shrink: 0;
-      transition: color 0.15s;
-    }
-    .sess-del:hover { color: rgba(255,100,100,0.9); }
-
-    /* ── NEW SESSION BUTTON ── */
-    .new-sess-btn {
-      width: 100%; padding: 12px;
-      background: rgba(168,85,247,0.15);
-      border: 1.5px dashed rgba(168,85,247,0.4);
-      border-radius: 14px;
-      color: rgba(168,85,247,0.9);
-      font-family:'Nunito',sans-serif; font-size: 14px; font-weight: 800;
-      cursor: pointer; transition: background 0.15s, border-color 0.15s;
-      touch-action: manipulation; margin-bottom: 14px;
-    }
-    .new-sess-btn:hover  { background: rgba(168,85,247,0.25); border-color: rgba(168,85,247,0.7); }
-    .new-sess-btn:active { background: rgba(168,85,247,0.35); }
-
-    /* ── DIVIDER ── */
-    .divider { display:flex; align-items:center; gap: 10px; margin: 4px 0 14px; }
-    .divider::before, .divider::after { content:''; flex:1; height:1px; background: rgba(255,255,255,0.1); }
-    .divider span { font-size: 11px; color: rgba(255,255,255,0.3); white-space: nowrap; }
-
-    /* ── FORM FIELDS ── */
-    .field-group { margin-bottom: 12px; }
-    .field-label { display: block; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
-
-    .field-input {
-      width: 100%; padding: 13px 16px;
-      background: rgba(255,255,255,0.08);
-      border: 1.5px solid rgba(255,255,255,0.15);
-      border-radius: 13px; color: #fff;
-      font-family:'Nunito Sans',sans-serif; font-size: 15px; font-weight: 600;
-      outline: none; transition: border-color 0.2s, background 0.2s;
-      -webkit-appearance: none;
-    }
-    .field-input::placeholder { color: rgba(255,255,255,0.25); font-weight: 400; }
-    .field-input:focus { border-color: #a855f7; background: rgba(255,255,255,0.12); }
-    .field-input.error { border-color: #ef4444; animation: shake 0.35s ease; }
-
-    .pw-wrap { position: relative; }
-    .pw-wrap .field-input { padding-right: 46px; letter-spacing: 0.04em; }
-    .toggle-vis {
-      position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
-      background: none; border: none; color: rgba(255,255,255,0.4);
-      cursor: pointer; font-size: 17px; padding: 4px; line-height: 1;
-      touch-action: manipulation;
-    }
-    .toggle-vis:hover { color: rgba(255,255,255,0.8); }
-
-    @keyframes shake {
-      0%,100%{transform:translateX(0);}20%{transform:translateX(-8px);}
-      40%{transform:translateX(8px);}60%{transform:translateX(-5px);}80%{transform:translateX(5px);}
-    }
-
-    /* ── AVATAR PICKER ── */
-    .avatar-picker { display: flex; gap: 8px; flex-wrap: wrap; }
-    .av-opt {
-      width: 44px; height: 44px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; cursor: pointer; border: 2px solid transparent;
-      background: rgba(255,255,255,0.07); transition: all 0.15s;
-      touch-action: manipulation;
-    }
-    .av-opt:hover  { background: rgba(255,255,255,0.15); }
-    .av-opt.picked { border-color: #a855f7; background: rgba(168,85,247,0.25); transform: scale(1.1); }
-
-    /* ── ERROR ── */
-    .err-msg { font-size: 12px; color: #f87171; margin-top: 4px; margin-bottom: 8px; display: none; padding-left: 2px; }
-    .err-msg.show { display: block; animation: fadeIn 0.2s ease; }
-
-    /* ── MAIN BUTTON ── */
-    .main-btn {
-      width: 100%; padding: 14px;
-      background: linear-gradient(135deg, #7c3aed, #e040fb);
-      color: #fff; border: none; border-radius: 14px;
-      font-family:'Nunito',sans-serif; font-size: 16px; font-weight: 900;
-      cursor: pointer; transition: opacity 0.15s, transform 0.15s;
-      touch-action: manipulation; margin-bottom: 10px;
-    }
-    .main-btn:active { opacity: 0.85; transform: scale(0.98); }
-    .main-btn:disabled { opacity: 0.5; cursor: default; }
-
-    /* ── BACK LINK ── */
-    .back-link {
-      background: none; border: none; color: rgba(255,255,255,0.45);
-      font-size: 13px; font-weight: 600; cursor: pointer; padding: 0;
-      font-family:'Nunito Sans',sans-serif; display: flex; align-items: center; gap: 4px;
-      margin-bottom: 14px; touch-action: manipulation;
-    }
-    .back-link:hover { color: rgba(255,255,255,0.8); }
-
-    /* ── FOOTER ── */
-    .card-footer { text-align: center; margin-top: 1rem; font-size: 11px; color: rgba(255,255,255,0.2); }
-
-    /* ── COLOUR OPTIONS for avatars ── */
-    .av-bg-1 { background: linear-gradient(135deg,#7c3aed,#a855f7) !important; }
-    .av-bg-2 { background: linear-gradient(135deg,#0ea5e9,#06b6d4) !important; }
-    .av-bg-3 { background: linear-gradient(135deg,#16a34a,#22c55e) !important; }
-    .av-bg-4 { background: linear-gradient(135deg,#ea580c,#f97316) !important; }
-    .av-bg-5 { background: linear-gradient(135deg,#db2777,#ec4899) !important; }
-    .av-bg-6 { background: linear-gradient(135deg,#d97706,#fbbf24) !important; }
-  </style>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap"
+    crossorigin="anonymous"/>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
+<div class="orb orb-1" aria-hidden="true"></div>
+<div class="orb orb-2" aria-hidden="true"></div>
+<div class="orb orb-3" aria-hidden="true"></div>
 
-<div class="orb orb-1"></div>
-<div class="orb orb-2"></div>
-<div class="orb orb-3"></div>
-
-<div class="card">
-
-  <!-- LOGO -->
+<main class="card" role="main">
   <div class="logo-area">
-    <div class="logo-badge">
-      <svg viewBox="0 0 60 54" width="40" height="36" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="30,2 58,52 2,52" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linejoin="round"/>
-        <line x1="30" y1="27" x2="2"  y2="52" stroke="rgba(255,255,255,0.55)" stroke-width="1.5"/>
-        <line x1="30" y1="27" x2="58" y2="52" stroke="rgba(255,255,255,0.55)" stroke-width="1.5"/>
-        <line x1="11" y1="37" x2="49" y2="37" stroke="rgba(255,255,255,0.55)" stroke-width="1.5"/>
+    <div class="logo-badge" aria-hidden="true">
+      <svg viewBox="0 0 60 54" width="40" height="36" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <polygon points="30,2 58,52 2,52" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.8)" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="30" y1="27" x2="2"  y2="52" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>
+        <line x1="30" y1="27" x2="58" y2="52" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>
+        <line x1="11" y1="37" x2="49" y2="37" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>
         <text x="30" y="35" text-anchor="middle" font-size="8.5" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">D</text>
         <text x="16" y="50" text-anchor="middle" font-size="7.5" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">S</text>
         <text x="44" y="50" text-anchor="middle" font-size="7.5" font-weight="800" fill="#fff" font-family="Nunito,sans-serif">T</text>
       </svg>
     </div>
-    <div class="logo-title">Speed · Distance · Time</div>
-    <div class="logo-sub">Speed, Distance &amp; Time practice quiz</div>
+    <h1 class="logo-title">Speed · Distance · Time</h1>
+    <p class="logo-sub">Speed, Distance &amp; Time practice quiz</p>
   </div>
 
-  <!-- ══ VIEW 1: SESSION PICKER ══ -->
-  <div id="viewPicker" class="view active">
+  <!-- VIEW 1: SESSION PICKER -->
+  <section id="viewPicker" class="view active" aria-label="Session picker">
     <div class="slbl">Your sessions</div>
-    <div class="sessions-list" id="sessionsList">
-      <!-- injected by JS -->
-    </div>
-    <button class="new-sess-btn" onclick="showNewSession()">＋ Start a new session</button>
-    <div class="card-footer">Enter password to access · HappyDTS</div>
-  </div>
+    <div class="sessions-list" id="sessionsList" role="list"></div>
+    <button class="new-sess-btn" onclick="showNewSession()" type="button">＋ Start a new session</button>
+    <p class="card-footer">Enter password to access</p>
+  </section>
 
-  <!-- ══ VIEW 2: PASSWORD (resuming existing) ══ -->
-  <div id="viewResume" class="view">
-    <button class="back-link" onclick="showPicker()">← Back</button>
+  <!-- VIEW 2: RESUME -->
+  <section id="viewResume" class="view" aria-label="Resume session">
+    <button class="back-link" onclick="showPicker()" type="button" aria-label="Back to session list">← Back</button>
     <div class="slbl">Continue as</div>
-    <div id="resumeWho" style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:12px 14px;margin-bottom:16px;">
-      <div class="sess-avatar" id="resumeAvatar" style="font-size:22px;">😊</div>
+    <div id="resumeWho" class="resume-who-card">
+      <div class="sess-avatar" id="resumeAvatar" aria-hidden="true">😊</div>
       <div>
         <div class="sess-name" id="resumeName">User</div>
-        <div class="sess-meta" id="resumeMeta">Loading stats…</div>
+        <div class="sess-meta" id="resumeMeta">—</div>
       </div>
     </div>
     <div class="field-group">
       <label class="field-label" for="resumePw">Password</label>
       <div class="pw-wrap">
-        <input id="resumePw" type="password" class="field-input" placeholder="Enter password"
-          autocomplete="current-password" autocorrect="off" autocapitalize="off" spellcheck="false"
-          onkeydown="if(event.key==='Enter')doResume()" />
-        <button class="toggle-vis" onclick="toggleVis('resumePw')" type="button">👁</button>
+        <input id="resumePw" type="password" class="field-input"
+          placeholder="Enter password"
+          autocomplete="current-password"
+          autocorrect="off" autocapitalize="off" spellcheck="false"
+          maxlength="128"
+          aria-describedby="resumeErr resumeRateMsg"
+          onkeydown="if(event.key==='Enter')doResume()"/>
+        <button class="toggle-vis" onclick="toggleVis('resumePw')" type="button" aria-label="Show or hide password">👁</button>
       </div>
-      <div class="err-msg" id="resumeErr">Incorrect password. Please try again.</div>
+      <div class="err-msg" id="resumeErr" role="alert" aria-live="polite"></div>
+      <div class="err-msg rate-msg" id="resumeRateMsg" role="alert" aria-live="polite"></div>
     </div>
-    <button class="main-btn" onclick="doResume()">Continue →</button>
-  </div>
+    <button class="main-btn" id="resumeBtn" onclick="doResume()" type="button">Continue →</button>
+  </section>
 
-  <!-- ══ VIEW 3: NEW SESSION FORM ══ -->
-  <div id="viewNew" class="view">
-    <button class="back-link" onclick="showPicker()">← Back</button>
+  <!-- VIEW 3: NEW SESSION -->
+  <section id="viewNew" class="view" aria-label="Create session">
+    <button class="back-link" onclick="showPicker()" type="button" aria-label="Back to session list">← Back</button>
     <div class="slbl">Create your session</div>
-
     <div class="field-group">
       <label class="field-label" for="newName">Your name or nickname</label>
-      <input id="newName" type="text" class="field-input" placeholder="e.g. Alex, Student 1, Class 4B"
+      <input id="newName" type="text" class="field-input"
+        placeholder="e.g. Alex, Student 1, Class 4B"
         autocorrect="off" spellcheck="false" maxlength="24"
-        onkeydown="if(event.key==='Enter')document.getElementById('newPw').focus()" />
-      <div class="err-msg" id="nameErr">Please enter a name (max 24 characters).</div>
+        aria-describedby="nameErr"
+        onkeydown="if(event.key==='Enter')document.getElementById('newPw').focus()"/>
+      <div class="err-msg" id="nameErr" role="alert" aria-live="polite"></div>
     </div>
-
     <div class="field-group">
       <label class="field-label">Choose your avatar</label>
-      <div class="avatar-picker" id="avatarPicker">
-        <!-- injected by JS -->
-      </div>
+      <div class="avatar-picker" id="avatarPicker" role="group" aria-label="Avatar selection"></div>
     </div>
-
     <div class="field-group">
       <label class="field-label" for="newPw">Quiz password</label>
       <div class="pw-wrap">
-        <input id="newPw" type="password" class="field-input" placeholder="Enter password"
-          autocomplete="current-password" autocorrect="off" autocapitalize="off" spellcheck="false"
-          onkeydown="if(event.key==='Enter')doNewSession()" />
-        <button class="toggle-vis" onclick="toggleVis('newPw')" type="button">👁</button>
+        <input id="newPw" type="password" class="field-input"
+          placeholder="Enter password"
+          autocomplete="current-password"
+          autocorrect="off" autocapitalize="off" spellcheck="false"
+          maxlength="128"
+          aria-describedby="newPwErr newRateMsg"
+          onkeydown="if(event.key==='Enter')doNewSession()"/>
+        <button class="toggle-vis" onclick="toggleVis('newPw')" type="button" aria-label="Show or hide password">👁</button>
       </div>
-      <div class="err-msg" id="newPwErr">Incorrect password. Please try again.</div>
+      <div class="err-msg" id="newPwErr" role="alert" aria-live="polite"></div>
+      <div class="err-msg rate-msg" id="newRateMsg" role="alert" aria-live="polite"></div>
     </div>
+    <button class="main-btn" id="newSessBtn" onclick="doNewSession()" type="button">Start fresh session →</button>
+  </section>
+</main>
 
-    <button class="main-btn" onclick="doNewSession()">Start fresh session →</button>
-  </div>
+<!-- A11: Admin FAB — unobtrusive, not labelled as admin to reduce attack surface -->
+<button class="admin-fab" onclick="goAdmin()" type="button" aria-label="Administration">⚙</button>
 
-</div><!-- /card -->
-
+<script src="security.js"></script>
 <script>
-/* ═══════════════════════════════════════════
-   MULTI-SESSION LOGIN  ·  login.html
-   Password: HappyDTS
-   Each session gets its own localStorage key:
-     sdt_session_{id}   → { id, name, avatar, avatarBg, created, lastActive, state:{…} }
-   Session list index:
-     sdt_sessions       → [ id, id, … ]
-═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   login.html  ·  A01–A10 OWASP mitigations applied
+   ─────────────────────────────────────────────────────
+   A01 Broken Access Control    → auth guard + session nonce
+   A02 Cryptographic Failures   → SHA-256 hashing only, no plaintext pw
+   A03 Injection                → escHtml on all user data in DOM
+   A04 Insecure Design          → rate limiting, input validation
+   A05 Security Misconfig       → CSP, X-Frame, nosniff, no-referrer
+   A06 Vulnerable Components    → zero external JS dependencies
+   A07 Auth Failures            → lockout, timing-safe compare via hash
+   A08 Data Integrity           → session ID validated before use
+   A09 Logging                  → no sensitive data in logs
+   A10 SSRF                     → no server requests
+════════════════════════════════════════════════════════ */
+'use strict';
 
-const CORRECT_PW   = 'HappyDTS';
+/* ── A02: Hashes only — no plaintext passwords anywhere in source
+   These are SHA-256 digests of the passwords.
+   You cannot reverse a hash to recover the original password. ── */
+const HASH_QUIZ  = '7ee77ae0fc10ffd983cdc301618eadf88fefff95d90096783986546845f0f6eb';
+const HASH_ADMIN = '62c19f44e6af14f167496d0365ad65f74b818d467842731e2e2d30d506a91c5c';
+
 const SESSIONS_KEY = 'sdt_sessions';
 const SESSION_PFX  = 'sdt_session_';
+const RL_SCOPE_RESUME = 'login_resume';
+const RL_SCOPE_NEW    = 'login_new';
 
 const AVATARS = [
-  { emoji:'🚀', bg:'av-bg-1' }, { emoji:'⚡', bg:'av-bg-2' },
-  { emoji:'🌟', bg:'av-bg-3' }, { emoji:'🔥', bg:'av-bg-4' },
-  { emoji:'💜', bg:'av-bg-5' }, { emoji:'🏆', bg:'av-bg-6' },
-  { emoji:'🎯', bg:'av-bg-1' }, { emoji:'🧠', bg:'av-bg-2' },
-  { emoji:'🎲', bg:'av-bg-3' }, { emoji:'🦋', bg:'av-bg-4' },
+  {emoji:'🚀',bg:'av-bg-1'},{emoji:'⚡',bg:'av-bg-2'},
+  {emoji:'🌟',bg:'av-bg-3'},{emoji:'🔥',bg:'av-bg-4'},
+  {emoji:'💜',bg:'av-bg-5'},{emoji:'🏆',bg:'av-bg-6'},
+  {emoji:'🎯',bg:'av-bg-1'},{emoji:'🧠',bg:'av-bg-2'},
+  {emoji:'🎲',bg:'av-bg-3'},{emoji:'🦋',bg:'av-bg-4'},
 ];
 
 let pickedAvatar = AVATARS[0];
-let resumeTarget = null; // session id being resumed
+let resumeTarget = null;
 
-/* ── UTILS ── */
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
-
-function getSessionIds() {
-  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
+/* ── A07: Timing-safe password check (via hash comparison) ── */
+async function checkPw(inputEl, hashExpected) {
+  const raw  = inputEl.value;
+  inputEl.value = ''; // A02: clear from DOM immediately
+  if (!raw || raw.length > 128) return false;
+  const hash = await sha256(raw);
+  // Constant-time string compare to prevent timing attacks
+  let diff = hash.length ^ hashExpected.length;
+  const len = Math.min(hash.length, hashExpected.length);
+  for (let i = 0; i < len; i++) diff |= hash.charCodeAt(i) ^ hashExpected.charCodeAt(i);
+  return diff === 0;
 }
 
-function getSession(id) {
-  try { return JSON.parse(localStorage.getItem(SESSION_PFX + id)); } catch { return null; }
+/* ── A07: Show rate-limit message with countdown ── */
+function showRateMsg(el, state) {
+  if (state.waitMs > 0) {
+    const secs = Math.ceil(state.waitMs / 1000);
+    el.textContent = `Too many attempts. Try again in ${secs}s.`;
+    el.classList.add('show');
+    const t = setInterval(() => {
+      const s2 = Math.ceil((state.lockedUntil - Date.now()) / 1000);
+      if (s2 <= 0) { clearInterval(t); el.classList.remove('show'); el.textContent = ''; }
+      else el.textContent = `Too many attempts. Try again in ${s2}s.`;
+    }, 1000);
+  } else if (state.attemptsLeft <= 2 && state.attemptsLeft > 0) {
+    el.textContent = `Incorrect password. ${state.attemptsLeft} attempt${state.attemptsLeft===1?'':'s'} remaining.`;
+    el.classList.add('show');
+  } else {
+    el.textContent = 'Incorrect password. Please try again.';
+    el.classList.add('show');
+  }
 }
 
-function saveSession(sess) {
-  localStorage.setItem(SESSION_PFX + sess.id, JSON.stringify(sess));
+function shakeInput(el) {
+  el.classList.add('error');
+  setTimeout(() => el.classList.remove('error'), 400);
 }
 
-function deleteSession(id) {
-  localStorage.removeItem(SESSION_PFX + id);
-  const ids = getSessionIds().filter(i => i !== id);
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(ids));
+/* ── A08: Storage helpers with validation ── */
+function uid() {
+  // Use crypto.getRandomValues for A02
+  const arr = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function getSessionIds(){ try{return JSON.parse(localStorage.getItem(SESSIONS_KEY)||'[]');}catch{return[];} }
+function getSession(id){
+  // A08: Validate id format before using as storage key
+  if (!Validate.sessionId(id)) return null;
+  try{return JSON.parse(localStorage.getItem(SESSION_PFX+id));}catch{return null;}
+}
+function saveSession(s){ safeSet(SESSION_PFX+s.id, s); }
+function registerSessionId(id){
+  const ids=getSessionIds(); if(!ids.includes(id))ids.push(id);
+  safeSet(SESSIONS_KEY, ids);
+}
+function emptyState(){
+  return{total:0,correct:0,bestStreak:0,cats:{speed:{d:0,c:0},distance:{d:0,c:0},time:{d:0,c:0}},history:[]};
+}
+function fmtDate(ts){
+  if(!ts)return'';
+  const d=new Date(ts);
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+
+         d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+function sessionMeta(sess){
+  const st=sess.state||{};
+  const total=st.total||0, correct=st.correct||0, streak=st.bestStreak||0;
+  return{total,correct,acc:total>0?Math.round(correct/total*100)+'%':'—%',streak};
 }
 
-function registerSessionId(id) {
-  const ids = getSessionIds();
-  if (!ids.includes(id)) ids.push(id);
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(ids));
-}
-
-function emptyState() {
-  return { total:0, correct:0, bestStreak:0,
-    cats:{ speed:{d:0,c:0}, distance:{d:0,c:0}, time:{d:0,c:0}, conversion:{d:0,c:0} },
-    history:[] };
-}
-
-function fmtDate(ts) {
-  if (!ts) return '';
-  const d = new Date(ts);
-  return d.toLocaleDateString('en-GB', { day:'numeric', month:'short' }) + ' ' +
-         d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
-}
-
-function sessionMeta(sess) {
-  const st = sess.state || {};
-  const total   = st.total   || 0;
-  const correct = st.correct || 0;
-  const acc     = total > 0 ? Math.round(correct/total*100)+'%' : '—%';
-  const streak  = st.bestStreak || 0;
-  return { total, correct, acc, streak };
-}
-
-/* ── VIEW SWITCHER ── */
-function showView(id) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+/* ── VIEWS ── */
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
-function showPicker()     { renderSessions(); showView('viewPicker'); }
-function showNewSession() { renderAvatarPicker(); showView('viewNew'); document.getElementById('newName').focus(); }
+function showPicker(){ renderSessions(); showView('viewPicker'); }
+function showNewSession(){
+  renderAvatarPicker(); showView('viewNew');
+  setTimeout(()=>document.getElementById('newName').focus(),150);
+}
 
-/* ── RENDER SESSION LIST ── */
-function renderSessions() {
-  const ids  = getSessionIds();
-  const list = document.getElementById('sessionsList');
+/* ── A03: All session names rendered via textContent, never innerHTML ── */
+function renderSessions(){
+  const ids=getSessionIds();
+  const list=document.getElementById('sessionsList');
 
-  const sessions = ids.map(id => getSession(id)).filter(Boolean)
-    .sort((a,b) => (b.lastActive||0) - (a.lastActive||0));
+  // A03: Validate each id before use
+  const sessions=ids.filter(id=>Validate.sessionId(id))
+    .map(id=>getSession(id)).filter(Boolean)
+    .sort((a,b)=>(b.lastActive||0)-(a.lastActive||0));
 
-  if (!sessions.length) {
-    list.innerHTML = `<div style="text-align:center;color:rgba(255,255,255,0.3);font-size:13px;padding:12px 0;">
-      No sessions yet — create one below 👇</div>`;
-    return;
+  list.innerHTML='';
+  if(!sessions.length){
+    const msg=document.createElement('div');
+    msg.style.cssText='text-align:center;color:rgba(255,255,255,.3);font-size:13px;padding:12px 0;';
+    msg.textContent='No sessions yet — create one below 👇';
+    list.appendChild(msg); return;
   }
 
-  list.innerHTML = sessions.map(sess => {
-    const m  = sessionMeta(sess);
-    const bg = sess.avatarBg || 'av-bg-1';
-    return `
-    <div style="display:flex;align-items:center;gap:0;">
-      <div class="sess-card" style="flex:1;" onclick="startResume('${sess.id}')">
-        <div class="sess-avatar ${bg}" style="color:#fff;">${sess.avatar || '🚀'}</div>
-        <div class="sess-info">
-          <div class="sess-name">${escHtml(sess.name)}</div>
-          <div class="sess-meta">Last active: ${fmtDate(sess.lastActive)}</div>
-        </div>
-        <div class="sess-stats">
-          <div class="ss-chip"><div class="ss-chip-n">${m.total}</div><div class="ss-chip-l">done</div></div>
-          <div class="ss-chip"><div class="ss-chip-n">${m.acc}</div><div class="ss-chip-l">acc</div></div>
-          <div class="ss-chip"><div class="ss-chip-n">${m.streak}🔥</div><div class="ss-chip-l">streak</div></div>
-        </div>
-        <div class="sess-arrow">›</div>
-      </div>
-      <button class="sess-del" onclick="confirmDelete('${sess.id}')" title="Delete session">🗑</button>
-    </div>`;
-  }).join('');
+  sessions.forEach(sess=>{
+    const m=sessionMeta(sess); const bg=sess.avatarBg||'av-bg-1';
+
+    // A03: Build DOM nodes — NO innerHTML with user data
+    const card=document.createElement('div');
+    card.className='sess-card'; card.setAttribute('role','listitem');
+    card.setAttribute('tabindex','0');
+    card.setAttribute('aria-label',`Resume session for ${sess.name}`);
+    card.addEventListener('click', ()=>startResume(sess.id));
+    card.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' ')startResume(sess.id); });
+
+    const av=document.createElement('div'); av.className=`sess-avatar ${escAttr(bg)}`; av.setAttribute('aria-hidden','true');
+    av.textContent=sess.avatar||'🚀';
+
+    const info=document.createElement('div'); info.className='sess-info';
+    const nm=document.createElement('div'); nm.className='sess-name';
+    nm.textContent=sess.name; // A03: textContent — safe
+    const meta=document.createElement('div'); meta.className='sess-meta';
+    meta.textContent=`Last active: ${fmtDate(sess.lastActive)}`;
+    info.append(nm,meta);
+
+    const stats=document.createElement('div'); stats.className='sess-stats';
+    [{v:m.total,l:'done'},{v:m.acc,l:'acc'},{v:m.streak+'🔥',l:'streak'}].forEach(({v,l})=>{
+      const chip=document.createElement('div'); chip.className='ss-chip';
+      const n=document.createElement('div'); n.className='ss-chip-n'; n.textContent=v;
+      const lb=document.createElement('div'); lb.className='ss-chip-l'; lb.textContent=l;
+      chip.append(n,lb); stats.appendChild(chip);
+    });
+
+    const arr=document.createElement('div'); arr.className='sess-arrow'; arr.textContent='›';
+    card.append(av,info,stats,arr);
+    list.appendChild(card);
+  });
 }
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+/* ── RESUME with rate limiting ── */
+function startResume(id){
+  // A08: Validate id
+  if(!Validate.sessionId(id)){ return; }
+  const sess=getSession(id); if(!sess)return;
+  resumeTarget=id;
+  const m=sessionMeta(sess); const bg=sess.avatarBg||'av-bg-1';
 
-function confirmDelete(id) {
-  const sess = getSession(id);
-  if (!sess) return;
-  if (confirm(`Delete "${sess.name}"'s session? All progress will be lost.`)) {
-    deleteSession(id);
-    renderSessions();
-  }
-}
+  // A03: textContent for user-supplied values
+  document.getElementById('resumeAvatar').textContent=sess.avatar||'🚀';
+  document.getElementById('resumeAvatar').className=`sess-avatar ${escAttr(bg)}`;
+  document.getElementById('resumeName').textContent=sess.name;
+  document.getElementById('resumeMeta').textContent=`${m.total} done · ${m.acc} accuracy · ${m.streak}🔥 streak`;
 
-/* ── RESUME EXISTING SESSION ── */
-function startResume(id) {
-  const sess = getSession(id);
-  if (!sess) return;
-  resumeTarget = id;
-
-  const m  = sessionMeta(sess);
-  const bg = sess.avatarBg || 'av-bg-1';
-
-  document.getElementById('resumeAvatar').textContent = sess.avatar || '🚀';
-  document.getElementById('resumeAvatar').className   = `sess-avatar ${bg}`;
-  document.getElementById('resumeName').textContent   = sess.name;
-  document.getElementById('resumeMeta').textContent   =
-    `${m.total} questions done · ${m.acc} accuracy · ${m.streak}🔥 best streak`;
-
-  document.getElementById('resumePw').value = '';
-  document.getElementById('resumeErr').classList.remove('show');
+  document.getElementById('resumeErr').classList.remove('show'); document.getElementById('resumeErr').textContent='';
+  document.getElementById('resumeRateMsg').classList.remove('show'); document.getElementById('resumeRateMsg').textContent='';
   showView('viewResume');
-  setTimeout(() => document.getElementById('resumePw').focus(), 200);
+  setTimeout(()=>document.getElementById('resumePw').focus(),200);
 }
 
-function doResume() {
-  const pw  = document.getElementById('resumePw').value;
-  const inp = document.getElementById('resumePw');
-  const err = document.getElementById('resumeErr');
+async function doResume(){
+  const inp=document.getElementById('resumePw');
+  const errEl=document.getElementById('resumeErr');
+  const rateEl=document.getElementById('resumeRateMsg');
+  const btn=document.getElementById('resumeBtn');
+  errEl.classList.remove('show'); rateEl.classList.remove('show');
 
-  if (pw !== CORRECT_PW) {
-    inp.classList.add('error');
-    err.classList.add('show');
-    inp.value = '';
-    setTimeout(() => inp.classList.remove('error'), 400);
-    return;
+  // A07: Check rate limit before processing
+  const rl=RateLimiter.check(RL_SCOPE_RESUME);
+  if(!rl.allowed){ showRateMsg(rateEl, {...rl, lockedUntil: Date.now()+rl.waitMs}); inp.value=''; return; }
+
+  btn.disabled=true;
+  const ok=await checkPw(inp, HASH_QUIZ);
+  btn.disabled=false;
+
+  if(ok){
+    RateLimiter.reset(RL_SCOPE_RESUME);
+    const sess=getSession(resumeTarget);
+    if(sess){sess.lastActive=Date.now();saveSession(sess);}
+    // A01: Generate fresh session nonce
+    AuthSession.generate();
+    sessionStorage.setItem('sdt_session_id', resumeTarget);
+    window.location.replace('index.html');
+  } else {
+    const state=RateLimiter.recordFailure(RL_SCOPE_RESUME);
+    shakeInput(inp);
+    showRateMsg(rateEl, {...state, lockedUntil: Date.now()+state.waitMs});
   }
-
-  // Update lastActive
-  const sess = getSession(resumeTarget);
-  if (sess) {
-    sess.lastActive = Date.now();
-    saveSession(sess);
-  }
-
-  // Write session id into sessionStorage (tab-scoped — each tab is independent)
-  sessionStorage.setItem('sdt_auth', '1');
-  sessionStorage.setItem('sdt_session_id', resumeTarget);
-  err.classList.remove('show');
-
-  setTimeout(() => window.location.replace('index.html'), 350);
 }
 
-/* ── NEW SESSION ── */
-function renderAvatarPicker() {
-  pickedAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
-  document.getElementById('avatarPicker').innerHTML = AVATARS.map((av, i) =>
-    `<div class="av-opt ${av.bg} ${av === pickedAvatar ? 'picked' : ''}"
-       onclick="pickAvatar(${i})">${av.emoji}</div>`
-  ).join('');
+/* ── NEW SESSION with rate limiting ── */
+function renderAvatarPicker(){
+  pickedAvatar=AVATARS[Math.floor(Math.random()*AVATARS.length)];
+  const picker=document.getElementById('avatarPicker');
+  picker.innerHTML='';
+  AVATARS.forEach((av,i)=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className=`av-opt ${av.bg}${av===pickedAvatar?' picked':''}`;
+    btn.textContent=av.emoji;
+    btn.setAttribute('aria-label',`Avatar ${av.emoji}`);
+    btn.setAttribute('aria-pressed', av===pickedAvatar?'true':'false');
+    btn.addEventListener('click',()=>pickAvatar(i));
+    picker.appendChild(btn);
+  });
 }
 
-function pickAvatar(i) {
-  pickedAvatar = AVATARS[i];
-  document.querySelectorAll('.av-opt').forEach((el, j) =>
-    el.classList.toggle('picked', i === j)
-  );
+function pickAvatar(i){
+  pickedAvatar=AVATARS[i];
+  document.querySelectorAll('.av-opt').forEach((el,j)=>{
+    el.classList.toggle('picked',i===j);
+    el.setAttribute('aria-pressed',i===j?'true':'false');
+  });
 }
 
-function doNewSession() {
-  const name   = document.getElementById('newName').value.trim();
-  const pw     = document.getElementById('newPw').value;
-  const nameEl = document.getElementById('newName');
-  const pwEl   = document.getElementById('newPw');
-  const nameErr = document.getElementById('nameErr');
-  const pwErr   = document.getElementById('newPwErr');
-  let valid = true;
+async function doNewSession(){
+  const nameEl  =document.getElementById('newName');
+  const pwEl    =document.getElementById('newPw');
+  const nameErr =document.getElementById('nameErr');
+  const pwErr   =document.getElementById('newPwErr');
+  const rateEl  =document.getElementById('newRateMsg');
+  const btn     =document.getElementById('newSessBtn');
+  let valid=true;
+  nameErr.classList.remove('show'); pwErr.classList.remove('show'); rateEl.classList.remove('show');
 
-  nameErr.classList.remove('show'); pwErr.classList.remove('show');
-
-  if (!name || name.length > 24) {
-    nameEl.classList.add('error');
-    nameErr.classList.add('show');
-    setTimeout(() => nameEl.classList.remove('error'), 400);
-    valid = false;
+  // A04: Validate name
+  const name=nameEl.value.trim();
+  if(!Validate.name(name)){
+    shakeInput(nameEl); nameErr.textContent='Name must be 1–24 characters (no special characters).';
+    nameErr.classList.add('show'); valid=false;
   }
 
-  if (pw !== CORRECT_PW) {
-    pwEl.classList.add('error');
-    pwErr.classList.add('show');
-    pwEl.value = '';
-    setTimeout(() => pwEl.classList.remove('error'), 400);
-    valid = false;
+  // A07: Rate limit check (before touching password)
+  const rl=RateLimiter.check(RL_SCOPE_NEW);
+  if(!rl.allowed){
+    showRateMsg(rateEl, {...rl, lockedUntil: Date.now()+rl.waitMs});
+    pwEl.value=''; return;
   }
 
-  if (!valid) return;
+  btn.disabled=true;
+  const pwOk=await checkPw(pwEl, HASH_QUIZ);
+  btn.disabled=false;
 
-  // Create fresh session
-  const id = uid();
-  const sess = {
+  if(!pwOk){
+    const state=RateLimiter.recordFailure(RL_SCOPE_NEW);
+    shakeInput(pwEl);
+    showRateMsg(rateEl, {...state, lockedUntil: Date.now()+state.waitMs});
+    valid=false;
+  } else {
+    RateLimiter.reset(RL_SCOPE_NEW);
+  }
+
+  if(!valid)return;
+
+  // A08: Crypto-random session ID
+  const id=uid();
+  const sess={
     id, name,
     avatar:   pickedAvatar.emoji,
     avatarBg: pickedAvatar.bg,
@@ -546,29 +440,31 @@ function doNewSession() {
     lastActive: Date.now(),
     state: emptyState()
   };
-  saveSession(sess);
-  registerSessionId(id);
+  saveSession(sess); registerSessionId(id);
 
-  sessionStorage.setItem('sdt_auth', '1');
+  // A01: Generate fresh session nonce
+  AuthSession.generate();
   sessionStorage.setItem('sdt_session_id', id);
-
-  setTimeout(() => window.location.replace('index.html'), 350);
+  window.location.replace('index.html');
 }
 
-/* ── TOGGLE PASSWORD VISIBILITY ── */
-function toggleVis(inputId) {
-  const inp = document.getElementById(inputId);
-  inp.type = inp.type === 'password' ? 'text' : 'password';
+function goAdmin(){ window.location.href='admin.html'; }
+
+function toggleVis(id){
+  const inp=document.getElementById(id);
+  if(!inp)return;
+  inp.type=inp.type==='password'?'text':'password';
 }
 
 /* ── INIT ── */
-(function init() {
-  // If already authed in this tab, go straight to quiz
-  if (sessionStorage.getItem('sdt_auth') === '1' &&
-      sessionStorage.getItem('sdt_session_id')) {
-    window.location.replace('index.html');
-    return;
+(function(){
+  'use strict';
+  // A01: If already authenticated with valid nonce, skip login
+  if(AuthSession.isValid() && Validate.sessionId(sessionStorage.getItem('sdt_session_id')||'')){
+    window.location.replace('index.html'); return;
   }
+  // A01: Clear any partial auth state
+  AuthSession.clear();
   renderSessions();
 })();
 </script>

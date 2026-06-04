@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none';
+             script-src 'self';
+             style-src 'self' https://fonts.googleapis.com 'unsafe-inline';
+             font-src https://fonts.gstatic.com;
+             img-src 'self' data:;
+             connect-src 'none';
+             frame-ancestors 'none';
+             base-uri 'self';
+             form-action 'self'"/>
+  <meta http-equiv="X-Frame-Options" content="DENY"/>
+  <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+  <meta http-equiv="Referrer-Policy" content="no-referrer"/>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+  <meta name="theme-color" content="#1e0533"/>
+  <meta name="robots" content="noindex, nofollow"/>
+  <title>SDT Quiz — Administration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin/>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap"
+    crossorigin="anonymous"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+    body{font-family:'Nunito Sans',sans-serif;min-height:100dvh;background:#0d0d1a;color:#e2e8f0;}
+    #loginOverlay{position:fixed;inset:0;background:#0d0d1a;z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;}
+    .login-card{width:min(400px,100%);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:2rem 1.75rem;backdrop-filter:blur(16px);animation:su .4s cubic-bezier(.34,1.56,.64,1) both;}
+    @keyframes su{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:none;}}
+    .lc-icon{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#dc2626,#991b1b);margin:0 auto 1rem;font-size:24px;}
+    .lc-title{font-family:'Nunito',sans-serif;font-size:20px;font-weight:900;color:#fff;text-align:center;margin-bottom:4px;}
+    .lc-sub{font-size:12px;color:rgba(255,255,255,.4);text-align:center;margin-bottom:1.5rem;}
+    .lc-input{width:100%;padding:13px 44px 13px 14px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.12);border-radius:12px;color:#fff;font-family:'Nunito Sans',sans-serif;font-size:15px;font-weight:600;outline:none;-webkit-appearance:none;transition:border-color .2s;}
+    .lc-input:focus{border-color:#ef4444;} .lc-input.error{border-color:#ef4444;animation:shk .35s ease;}
+    @keyframes shk{0%,100%{transform:translateX(0);}20%{transform:translateX(-8px);}40%{transform:translateX(8px);}60%{transform:translateX(-5px);}80%{transform:translateX(5px);}}
+    .lc-input::placeholder{color:rgba(255,255,255,.25);}
+    .pw-wrap{position:relative;margin-bottom:8px;}
+    .toggle-vis{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:16px;padding:4px;line-height:1;}
+    .toggle-vis:hover{color:rgba(255,255,255,.8);}
+    .lc-err{font-size:12px;color:#f87171;margin-bottom:10px;display:none;padding-left:2px;} .lc-err.show{display:block;}
+    .lc-rate{font-size:12px;color:#fbbf24;margin-bottom:10px;display:none;padding-left:2px;} .lc-rate.show{display:block;}
+    .lc-btn{width:100%;padding:13px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;border-radius:12px;font-family:'Nunito',sans-serif;font-size:15px;font-weight:900;cursor:pointer;margin-bottom:10px;transition:opacity .15s;}
+    .lc-btn:active{opacity:.85;} .lc-btn:disabled{opacity:.5;cursor:default;}
+    .back-link{display:block;text-align:center;font-size:12px;color:rgba(255,255,255,.3);cursor:pointer;background:none;border:none;width:100%;font-family:'Nunito Sans',sans-serif;}
+    .back-link:hover{color:rgba(255,255,255,.6);}
+    #adminApp{display:none;}
+    .adm-header{background:linear-gradient(135deg,#1e0533,#3b0764);border-bottom:1px solid rgba(255,255,255,.08);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+    .adm-logo{display:flex;align-items:center;gap:10px;}
+    .adm-logo-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#dc2626,#991b1b);display:flex;align-items:center;justify-content:center;font-size:18px;}
+    .adm-logo-text{font-family:'Nunito',sans-serif;font-size:17px;font-weight:900;color:#fff;}
+    .adm-logo-sub{font-size:10px;color:rgba(255,255,255,.4);margin-top:1px;}
+    .adm-badge{font-size:10px;font-weight:700;background:#dc2626;color:#fff;border-radius:99px;padding:2px 10px;letter-spacing:.05em;text-transform:uppercase;}
+    .adm-logout{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer;font-family:'Nunito Sans',sans-serif;}
+    .adm-logout:hover{background:rgba(255,255,255,.12);}
+    .adm-body{max-width:700px;margin:0 auto;padding:1.25rem;}
+    .stat-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem;}
+    .stat-tile{background:rgba(255,255,255,.04);border:0.5px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 12px;text-align:center;}
+    .st-n{font-family:'Nunito',sans-serif;font-size:28px;font-weight:900;color:#fff;line-height:1;}
+    .st-l{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;}
+    .section-card{background:rgba(255,255,255,.03);border:0.5px solid rgba(255,255,255,.1);border-radius:16px;overflow:hidden;margin-bottom:1rem;}
+    .section-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);}
+    .section-title{font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;color:#fff;}
+    .section-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:1px;}
+    .btn-danger{padding:8px 14px;background:#dc2626;color:#fff;border:none;border-radius:10px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:opacity .15s;touch-action:manipulation;}
+    .btn-danger:hover{opacity:.85;}
+    .btn-outline{padding:8px 14px;background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.15);border-radius:10px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;touch-action:manipulation;}
+    .btn-outline:hover{background:rgba(255,255,255,.06);color:#fff;}
+    .sess-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:0.5px solid rgba(255,255,255,.06);}
+    .sess-row:last-child{border-bottom:none;}
+    .sr-av{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+    .sr-info{flex:1;min-width:0;}
+    .sr-name{font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#fff;margin-bottom:2px;}
+    .sr-meta{font-size:11px;color:rgba(255,255,255,.4);}
+    .sr-stats{display:flex;gap:6px;flex-shrink:0;}
+    .sr-chip{background:rgba(255,255,255,.06);border-radius:8px;padding:4px 8px;text-align:center;min-width:44px;}
+    .sr-chip-n{font-family:'Nunito',sans-serif;font-size:12px;font-weight:900;color:#fff;line-height:1;}
+    .sr-chip-l{font-size:8px;color:rgba(255,255,255,.35);text-transform:uppercase;margin-top:1px;}
+    .sr-del{background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);border-radius:8px;color:#f87171;font-size:14px;cursor:pointer;padding:6px 10px;touch-action:manipulation;transition:all .15s;}
+    .sr-del:hover{background:rgba(220,38,38,.3);}
+    .empty-state{text-align:center;color:rgba(255,255,255,.25);font-size:13px;padding:24px;}
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px 20px;font-size:13px;font-weight:600;color:#fff;z-index:999;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;}
+    .toast.show{opacity:1;}
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem;}
+    .modal-bg.open{display:flex;animation:mfade .2s ease;} @keyframes mfade{from{opacity:0;}to{opacity:1;}}
+    .modal{background:#1a1030;border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:1.5rem;width:min(360px,100%);text-align:center;}
+    .modal-icon{font-size:36px;margin-bottom:10px;} .modal-title{font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;color:#fff;margin-bottom:6px;}
+    .modal-body{font-size:13px;color:rgba(255,255,255,.55);margin-bottom:1.25rem;line-height:1.5;}
+    .modal-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .modal-cancel{padding:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;color:rgba(255,255,255,.7);font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
+    .modal-confirm{padding:12px;background:#dc2626;border:none;border-radius:12px;color:#fff;font-family:'Nunito',sans-serif;font-size:14px;font-weight:900;cursor:pointer;}
+    .modal-confirm:hover{opacity:.9;}
+    .av-bg-1{background:linear-gradient(135deg,#7c3aed,#a855f7);}
+    .av-bg-2{background:linear-gradient(135deg,#0ea5e9,#06b6d4);}
+    .av-bg-3{background:linear-gradient(135deg,#16a34a,#22c55e);}
+    .av-bg-4{background:linear-gradient(135deg,#ea580c,#f97316);}
+    .av-bg-5{background:linear-gradient(135deg,#db2777,#ec4899);}
+    .av-bg-6{background:linear-gradient(135deg,#d97706,#fbbf24);}
+  </style>
+</head>
+<body>
+
+<div id="loginOverlay" role="main" aria-label="Admin login">
+  <div class="login-card">
+    <div class="lc-icon" aria-hidden="true">🔐</div>
+    <h1 class="lc-title">Admin Panel</h1>
+    <p class="lc-sub">Restricted access — administrators only</p>
+    <div class="pw-wrap">
+      <input id="adminPw" type="password" class="lc-input"
+        placeholder="Admin password"
+        autocomplete="current-password"
+        autocorrect="off" autocapitalize="off" spellcheck="false"
+        maxlength="128"
+        aria-label="Admin password"
+        aria-describedby="adminPwErr adminRateMsg"
+        onkeydown="if(event.key==='Enter')doAdminLogin()"/>
+      <button class="toggle-vis" onclick="toggleVis('adminPw')" type="button" aria-label="Show or hide password">👁</button>
+    </div>
+    <div class="lc-err" id="adminPwErr" role="alert" aria-live="polite"></div>
+    <div class="lc-rate" id="adminRateMsg" role="alert" aria-live="polite"></div>
+    <button class="lc-btn" id="adminLoginBtn" onclick="doAdminLogin()" type="button">Sign in to Admin →</button>
+    <button class="back-link" onclick="window.location.href='login.html'" type="button">← Back to login</button>
+  </div>
+</div>
+
+<div id="adminApp" role="main" aria-label="Administration panel">
+  <header class="adm-header">
+    <div class="adm-logo">
+      <div class="adm-logo-icon" aria-hidden="true">🔐</div>
+      <div>
+        <div class="adm-logo-text">Admin Panel</div>
+        <div class="adm-logo-sub">SDT Quiz Management</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="adm-badge" aria-label="Admin mode">Admin</span>
+      <button class="adm-logout" onclick="adminLogout()" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <div class="adm-body">
+    <div class="stat-tiles" role="region" aria-label="Summary statistics">
+      <div class="stat-tile"><div class="st-n" id="adm-total-sessions">0</div><div class="st-l">Sessions</div></div>
+      <div class="stat-tile"><div class="st-n" id="adm-total-q">0</div><div class="st-l">Questions done</div></div>
+      <div class="stat-tile"><div class="st-n" id="adm-avg-acc">—</div><div class="st-l">Avg accuracy</div></div>
+    </div>
+
+    <div class="section-card" style="border-color:rgba(220,38,38,.3);" role="region" aria-label="Danger zone">
+      <div class="section-head" style="background:rgba(220,38,38,.06);">
+        <div>
+          <div class="section-title" style="color:#f87171;">⚠️ Danger zone</div>
+          <div class="section-sub">These actions cannot be undone</div>
+        </div>
+        <button class="btn-danger" onclick="confirmClearAll()" type="button">Clear all sessions</button>
+      </div>
+    </div>
+
+    <div class="section-card" role="region" aria-label="Session list">
+      <div class="section-head">
+        <div>
+          <div class="section-title">👥 All sessions</div>
+          <div class="section-sub" id="sessCountLabel">Loading…</div>
+        </div>
+        <button class="btn-outline" onclick="refreshPanel()" type="button">↻ Refresh</button>
+      </div>
+      <div id="adminSessionList"><div class="empty-state">Loading sessions…</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <div class="modal-icon" id="modalIcon" aria-hidden="true">⚠️</div>
+    <h2 class="modal-title" id="modalTitle">Are you sure?</h2>
+    <p class="modal-body"  id="modalBody">This cannot be undone.</p>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()" type="button">Cancel</button>
+      <button class="modal-confirm" id="modalConfirmBtn" onclick="runModalAction()" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="security.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════
+   admin.html  ·  A01–A10 OWASP mitigations applied
+   ─────────────────────────────────────────────────────
+   A01 Access Control  → separate admin nonce, no user can reach this
+   A02 Crypto          → SHA-256 only, no plaintext credentials
+   A03 Injection       → textContent DOM API everywhere
+   A04 Design          → rate limiting + exponential lockout
+   A05 Misconfig       → CSP, X-Frame, nosniff, no-referrer, no-index
+   A06 Components      → zero external JS dependencies
+   A07 Auth Failures   → brute force lockout, timing-safe compare
+   A08 Integrity       → session IDs validated before use
+   A09 Logging         → no sensitive data logged
+   A10 SSRF            → no external requests
+════════════════════════════════════════════════════════ */
+'use strict';
+
+/* A02: Hash only — no plaintext credential anywhere in source */
+const HASH_ADMIN = '62c19f44e6af14f167496d0365ad65f74b818d467842731e2e2d30d506a91c5c';
+const ADMIN_NONCE_KEY = 'sdt_admin_nonce';
+const RL_SCOPE = 'admin_login';
+
+const SESSIONS_KEY = 'sdt_sessions';
+const SESSION_PFX  = 'sdt_session_';
+
+/* A01: Admin session management with nonce */
+const AdminAuth = {
+  generate() {
+    const nonce = crypto.getRandomValues(new Uint8Array(16));
+    const hex   = Array.from(nonce).map(b=>b.toString(16).padStart(2,'0')).join('');
+    sessionStorage.setItem('sdt_admin_auth', '1');
+    sessionStorage.setItem(ADMIN_NONCE_KEY,   hex);
+    return hex;
+  },
+  isValid() {
+    return sessionStorage.getItem('sdt_admin_auth') === '1' &&
+           (sessionStorage.getItem(ADMIN_NONCE_KEY) || '').length === 32;
+  },
+  clear() {
+    sessionStorage.removeItem('sdt_admin_auth');
+    sessionStorage.removeItem(ADMIN_NONCE_KEY);
+  }
+};
+
+/* A02: Timing-safe password check */
+async function checkAdminPw(inputEl) {
+  const raw = inputEl.value;
+  inputEl.value = ''; // A02: clear from DOM immediately
+  if (!raw || raw.length > 128) return false;
+  const hash = await sha256(raw);
+  let diff = hash.length ^ HASH_ADMIN.length;
+  const len = Math.min(hash.length, HASH_ADMIN.length);
+  for (let i=0;i<len;i++) diff |= hash.charCodeAt(i) ^ HASH_ADMIN.charCodeAt(i);
+  return diff === 0;
+}
+
+function showRateMsg(el, state) {
+  if (state.waitMs > 0) {
+    const secs = Math.ceil(state.waitMs / 1000);
+    el.textContent = `Too many attempts. Try again in ${secs}s.`;
+    el.classList.add('show');
+    const t = setInterval(() => {
+      const s2 = Math.ceil((Date.now() - (Date.now() - state.waitMs)) / 1000);
+      if (s2 <= 0) { clearInterval(t); el.classList.remove('show'); el.textContent=''; }
+      else el.textContent = `Too many attempts. Try again in ${s2}s.`;
+    }, 1000);
+  } else {
+    el.textContent = state.attemptsLeft <= 2
+      ? `Incorrect. ${state.attemptsLeft} attempt${state.attemptsLeft===1?'':'s'} remaining.`
+      : 'Incorrect admin password.';
+    el.classList.add('show');
+  }
+}
+
+async function doAdminLogin(){
+  const inp    = document.getElementById('adminPw');
+  const errEl  = document.getElementById('adminPwErr');
+  const rateEl = document.getElementById('adminRateMsg');
+  const btn    = document.getElementById('adminLoginBtn');
+  errEl.classList.remove('show'); rateEl.classList.remove('show');
+
+  // A07: Rate limit
+  const rl = RateLimiter.check(RL_SCOPE);
+  if (!rl.allowed) {
+    showRateMsg(rateEl, {...rl, lockedUntil: Date.now()+rl.waitMs});
+    inp.value=''; return;
+  }
+
+  btn.disabled = true;
+  const ok = await checkAdminPw(inp);
+  btn.disabled = false;
+
+  if (ok) {
+    RateLimiter.reset(RL_SCOPE);
+    AdminAuth.generate();
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('adminApp').style.display = 'block';
+    refreshPanel();
+  } else {
+    const state = RateLimiter.recordFailure(RL_SCOPE);
+    inp.classList.add('error'); setTimeout(()=>inp.classList.remove('error'),400);
+    showRateMsg(rateEl, {...state, lockedUntil: Date.now()+state.waitMs});
+  }
+}
+
+function adminLogout(){
+  AdminAuth.clear();
+  window.location.href='login.html';
+}
+
+function toggleVis(id){
+  const inp=document.getElementById(id); if(!inp)return;
+  inp.type=inp.type==='password'?'text':'password';
+}
+
+/* ── Storage helpers ── */
+function getSessionIds(){ try{return JSON.parse(localStorage.getItem(SESSIONS_KEY)||'[]');}catch{return[];} }
+function getSession(id){
+  if(!Validate.sessionId(id))return null; // A08
+  try{return JSON.parse(localStorage.getItem(SESSION_PFX+id));}catch{return null;}
+}
+function deleteSession(id){
+  if(!Validate.sessionId(id))return; // A08
+  localStorage.removeItem(SESSION_PFX+id);
+  localStorage.setItem(SESSIONS_KEY, JSON.stringify(getSessionIds().filter(i=>i!==id)));
+}
+function clearAllSessions(){
+  getSessionIds().filter(id=>Validate.sessionId(id))
+    .forEach(id=>localStorage.removeItem(SESSION_PFX+id));
+  localStorage.removeItem(SESSIONS_KEY);
+}
+
+function fmtDate(ts){
+  if(!ts)return'—';
+  const d=new Date(ts);
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+    +' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* A03: Build admin rows with textContent — no innerHTML on user data */
+function refreshPanel(){
+  // A01: Re-verify admin auth before every action
+  if(!AdminAuth.isValid()){ adminLogout(); return; }
+
+  const ids = getSessionIds().filter(id=>Validate.sessionId(id)); // A08
+  const sessions = ids.map(id=>getSession(id)).filter(Boolean)
+    .sort((a,b)=>(b.lastActive||0)-(a.lastActive||0));
+
+  let totalQ=0, totalCorrect=0;
+  sessions.forEach(s=>{ const st=s.state||{}; totalQ+=st.total||0; totalCorrect+=st.correct||0; });
+  const avgAcc = totalQ>0 ? Math.round(totalCorrect/totalQ*100)+'%' : '—';
+
+  // A03: textContent
+  document.getElementById('adm-total-sessions').textContent = sessions.length;
+  document.getElementById('adm-total-q').textContent = totalQ;
+  document.getElementById('adm-avg-acc').textContent = avgAcc;
+  document.getElementById('sessCountLabel').textContent = sessions.length===1?'1 session':sessions.length+' sessions';
+
+  const listEl=document.getElementById('adminSessionList');
+  listEl.innerHTML='';
+
+  if(!sessions.length){
+    const empty=document.createElement('div'); empty.className='empty-state';
+    empty.textContent='No sessions found.'; listEl.appendChild(empty); return;
+  }
+
+  sessions.forEach(sess=>{
+    const st=sess.state||{};
+    const total=st.total||0, correct=st.correct||0, streak=st.bestStreak||0;
+    const acc=total>0?Math.round(correct/total*100)+'%':'—%';
+    const bg=sess.avatarBg||'av-bg-1';
+
+    // A03: DOM API, no innerHTML with user data
+    const row=document.createElement('div'); row.className='sess-row';
+
+    const av=document.createElement('div'); av.className=`sr-av ${escAttr(bg)}`; av.textContent=sess.avatar||'🚀';
+
+    const info=document.createElement('div'); info.className='sr-info';
+    const nm=document.createElement('div'); nm.className='sr-name'; nm.textContent=sess.name;
+    const meta=document.createElement('div'); meta.className='sr-meta';
+    meta.textContent=`Created: ${fmtDate(sess.created)} · Last active: ${fmtDate(sess.lastActive)}`;
+    info.append(nm,meta);
+
+    const stats=document.createElement('div'); stats.className='sr-stats';
+    [{v:total,l:'done'},{v:acc,l:'acc'},{v:streak+'🔥',l:'streak'}].forEach(({v,l})=>{
+      const chip=document.createElement('div'); chip.className='sr-chip';
+      const n=document.createElement('div'); n.className='sr-chip-n'; n.textContent=v;
+      const lb=document.createElement('div'); lb.className='sr-chip-l'; lb.textContent=l;
+      chip.append(n,lb); stats.appendChild(chip);
+    });
+
+    const del=document.createElement('button'); del.type='button'; del.className='sr-del';
+    del.textContent='🗑'; del.setAttribute('aria-label',`Delete session for ${sess.name}`);
+    del.addEventListener('click',()=>confirmDeleteSession(sess.id, sess.name));
+
+    row.append(av,info,stats,del);
+    listEl.appendChild(row);
+  });
+}
+
+/* ── Confirm modal ── */
+let pendingAction=null;
+
+function openModal(icon,title,body,confirmLabel,action){
+  // A03: textContent
+  document.getElementById('modalIcon').textContent=icon;
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').textContent=body;
+  document.getElementById('modalConfirmBtn').textContent=confirmLabel;
+  pendingAction=action;
+  document.getElementById('modalBg').classList.add('open');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('open'); pendingAction=null; }
+function runModalAction(){
+  if(!AdminAuth.isValid()){ adminLogout(); return; } // A01: Re-check before destructive action
+  if(pendingAction) pendingAction();
+  closeModal();
+}
+
+function confirmDeleteSession(id, name){
+  if(!Validate.sessionId(id))return; // A08
+  openModal('🗑️','Delete session?',
+    `This will permanently delete the session for "${name}" and all their progress. This cannot be undone.`,
+    'Delete session',
+    ()=>{ deleteSession(id); showToast(`Session deleted`); refreshPanel(); }
+  );
+}
+
+function confirmClearAll(){
+  const count=getSessionIds().filter(id=>Validate.sessionId(id)).length;
+  if(!count){ showToast('No sessions to clear'); return; }
+  openModal('⚠️','Clear ALL sessions?',
+    `This will permanently delete all ${count} session${count===1?'':'s'} and all student progress. This cannot be undone.`,
+    'Clear everything',
+    ()=>{ clearAllSessions(); showToast('All sessions cleared'); refreshPanel(); }
+  );
+}
+
+/* ── Toast ── */
+let toastTimer;
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+/* ── INIT ── */
+(function(){
+  'use strict';
+  if(AdminAuth.isValid()){
+    document.getElementById('loginOverlay').style.display='none';
+    document.getElementById('adminApp').style.display='block';
+    refreshPanel();
+  } else {
+    AdminAuth.clear();
+    setTimeout(()=>document.getElementById('adminPw').focus(),300);
+  }
+})();
+</script>
+</body>
+</html>

@@ -2,14 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <!--
+    A05 Security Misconfiguration: strict Content-Security-Policy
+    frame-ancestors 'none' prevents clickjacking.
+    base-uri 'self' blocks base-tag injection attacks.
+    No eval(), no inline scripts (except static auth guard below).
+  -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none';
+             script-src 'self' 'unsafe-inline';
+             style-src 'self' https://fonts.googleapis.com 'unsafe-inline';
+             font-src https://fonts.gstatic.com;
+             img-src 'self' data:;
+             connect-src 'none';
+             frame-ancestors 'none';
+             base-uri 'self';
+             form-action 'self'" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="Referrer-Policy" content="no-referrer" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#7c3aed" />
-  <meta name="description" content="Speed, Distance & Time quiz app with 2000 questions, whole number and decimal modes." />
+  <meta name="description" content="Speed, Distance and Time practice quiz." />
   <title>Speed · Distance · Time Quiz</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;600;700&display=swap"
+    crossorigin="anonymous" />
   <link rel="manifest" href="manifest.json" />
-  <!-- Auth guard: redirect to login if not authenticated -->
+  <!-- A01: Auth guard — security.js + nonce validation in app.js init() do the real work -->
   <script>
+    // Quick pre-load check; full cryptographic validation done in app.js init()
     if (sessionStorage.getItem('sdt_auth') !== '1') {
       window.location.replace('login.html');
     }
@@ -30,7 +56,7 @@
             <div class="hero-user">Signed in as <strong id="sessionName">…</strong></div>
           </div>
         </div>
-        <button class="logout-btn" onclick="doLogout()" title="Sign out">⎋ Exit</button>
+        <button class="logout-btn" onclick="doLogout()" type="button" aria-label="Sign out">⎋ Exit</button>
       </div>
       <div class="hero-sub">1500 questions · Speed, Distance &amp; Time</div>
       <div class="stats-row">
@@ -241,6 +267,7 @@
 
 </div><!-- /app -->
 
+<script src="security.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
