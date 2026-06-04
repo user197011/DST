@@ -244,18 +244,19 @@ async function checkAdminPw(inputEl) {
 
 function showRateMsg(el, state) {
   if (state.waitMs > 0) {
-    const secs = Math.ceil(state.waitMs / 1000);
-    el.textContent = `Too many attempts. Try again in ${secs}s.`;
+    const lockUntil = Date.now() + state.waitMs;
+    el.textContent = `Too many attempts. Try again in ${Math.ceil(state.waitMs/1000)}s.`;
     el.classList.add('show');
     const t = setInterval(() => {
-      const s2 = Math.ceil((Date.now() - (Date.now() - state.waitMs)) / 1000);
-      if (s2 <= 0) { clearInterval(t); el.classList.remove('show'); el.textContent=''; }
-      else el.textContent = `Too many attempts. Try again in ${s2}s.`;
-    }, 1000);
+      const rem = Math.ceil((lockUntil - Date.now()) / 1000);
+      if (rem <= 0) { clearInterval(t); el.classList.remove('show'); el.textContent=''; }
+      else el.textContent = `Too many attempts. Try again in ${rem}s.`;
+    }, 500);
   } else {
-    el.textContent = state.attemptsLeft <= 2
-      ? `Incorrect. ${state.attemptsLeft} attempt${state.attemptsLeft===1?'':'s'} remaining.`
-      : 'Incorrect admin password.';
+    const left = state.attemptsLeft || 0;
+    el.textContent = left <= 2 && left > 0
+      ? `Incorrect. ${left} attempt${left===1?'':'s'} remaining.`
+      : 'Incorrect admin password. Please try again.';
     el.classList.add('show');
   }
 }
@@ -270,7 +271,7 @@ async function doAdminLogin(){
   // A07: Rate limit
   const rl = RateLimiter.check(RL_SCOPE);
   if (!rl.allowed) {
-    showRateMsg(rateEl, {...rl, lockedUntil: Date.now()+rl.waitMs});
+    showRateMsg(rateEl, rl);
     inp.value=''; return;
   }
 
@@ -285,9 +286,26 @@ async function doAdminLogin(){
     document.getElementById('adminApp').style.display = 'block';
     refreshPanel();
   } else {
-    const state = RateLimiter.recordFailure(RL_SCOPE);
+    const rlState = RateLimiter.recordFailure(RL_SCOPE);
     inp.classList.add('error'); setTimeout(()=>inp.classList.remove('error'),400);
-    showRateMsg(rateEl, {...state, lockedUntil: Date.now()+state.waitMs});
+    if (rlState.waitMs > 0) {
+      // Locked out — show countdown in rate msg
+      const secs = Math.ceil(rlState.waitMs / 1000);
+      rateEl.textContent = `Too many attempts. Try again in ${secs}s.`;
+      rateEl.classList.add('show');
+      const lockUntil = Date.now() + rlState.waitMs;
+      const timer = setInterval(() => {
+        const rem = Math.ceil((lockUntil - Date.now()) / 1000);
+        if (rem <= 0) { clearInterval(timer); rateEl.classList.remove('show'); rateEl.textContent=''; }
+        else rateEl.textContent = `Too many attempts. Try again in ${rem}s.`;
+      }, 500);
+    } else {
+      const left = rlState.attemptsLeft;
+      errEl.textContent = left <= 2 && left > 0
+        ? `Incorrect password. ${left} attempt${left===1?'':'s'} remaining.`
+        : 'Incorrect admin password. Please try again.';
+      errEl.classList.add('show');
+    }
   }
 }
 
